@@ -118,10 +118,10 @@ func (g *GOCAClient) ListACLs(ctx context.Context) ([]ACLInfo, error) {
 		a := &pool.ACLs[i]
 		out = append(out, ACLInfo{
 			ID:       a.ID,
-			User:     a.User,
-			Resource: a.Resource,
-			Rights:   a.Rights,
-			Zone:     a.Zone,
+			User:     DecodeACLUser(a.User),
+			Resource: DecodeACLResource(a.Resource),
+			Rights:   DecodeACLRights(a.Rights),
+			Zone:     DecodeACLZone(a.Zone),
 		})
 	}
 	return out, nil

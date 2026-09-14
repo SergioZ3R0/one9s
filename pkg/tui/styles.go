@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	// Base colors
-	primary = lipgloss.Color("#7C3AED")
-	accent  = lipgloss.Color("#06B6D4")
-	success = lipgloss.Color("#22C55E")
-	warning = lipgloss.Color("#F59E0B")
-	danger  = lipgloss.Color("#EF4444")
-	dim     = lipgloss.Color("#6B7280")
-	bright  = lipgloss.Color("#F9FAFB")
+	// ANSI 256 palette - readable on dark terminals
+	primary = lipgloss.Color("129") // bright purple
+	accent  = lipgloss.Color("75")  // bright cyan
+	success = lipgloss.Color("114") // bright green
+	warning = lipgloss.Color("221") // bright yellow
+	danger  = lipgloss.Color("203") // bright red
+	dim     = lipgloss.Color("245") // gray
+	bright  = lipgloss.Color("231") // white
 
 	// Header bar
 	headerStyle = lipgloss.NewStyle().
@@ -65,13 +65,17 @@ var (
 	titleStyle = lipgloss.NewStyle().
 			Foreground(primary).
 			Bold(true)
+
+	// VM list cursor
+	cursorStyle = lipgloss.NewStyle().Foreground(accent).Bold(true).Reverse(true)
 )
 
 func stateStyle(state string) lipgloss.Style {
 	switch {
-	case strings.Contains(state, "RUNNING") || strings.Contains(state, "ACTIVE"):
+	case strings.Contains(state, "RUNNING") || strings.HasPrefix(state, "ACTIVE"):
 		return stateRunning
-	case strings.Contains(state, "POWEROFF") || strings.Contains(state, "SHUTDOWN"):
+	case strings.Contains(state, "POWEROFF") || strings.Contains(state, "SHUTDOWN") ||
+		strings.Contains(state, "STATE("):
 		return statePoweroff
 	case strings.Contains(state, "SUSPENDED") || strings.Contains(state, "STOPPED"):
 		return stateSuspend

@@ -41,10 +41,6 @@ type VMRow struct {
 	DeployID string
 }
 
-var (
-	cursorStyle = lipgloss.NewStyle().Foreground(accent).Bold(true).Reverse(true)
-)
-
 func newVMListModel() vmListModel {
 	ti := textinput.New()
 	ti.Placeholder = "filter vms..."
