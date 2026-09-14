@@ -1,10 +1,6 @@
 package tui
 
-import (
-	"time"
-
-	"github.com/scabello/one9s/internal/client"
-)
+import "github.com/scabello/one9s/internal/client"
 
 // --- Data fetched messages ---
 
@@ -32,10 +28,6 @@ type quotasFetchedMsg struct {
 	quotas []client.QuotaInfo
 	err    error
 }
-
-// --- Polling ---
-
-type tickMsg time.Time
 
 // --- Action results ---
 
