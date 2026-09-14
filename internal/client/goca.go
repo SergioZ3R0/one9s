@@ -132,29 +132,57 @@ func (g *GOCAClient) ListQuotas(ctx context.Context) ([]QuotaInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("userpool.info: %w", err)
 	}
-	out := make([]QuotaInfo, 0, len(userPool.Users))
+
+	// Fetch individual user info (with quotas) concurrently
+	type result struct {
+		idx  int
+		name string
+		qi   QuotaInfo
+	}
+
+	results := make(chan result, len(userPool.Users))
+	sem := make(chan struct{}, 10) // limit concurrency
+
 	for i := range userPool.Users {
 		u := &userPool.Users[i]
-		qi := QuotaInfo{
-			Entity: fmt.Sprintf("user:%s", u.Name),
+		go func(idx int, uid int, uname string) {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			info, err := g.controller.User(uid).InfoContext(ctx, false)
+			if err != nil {
+				results <- result{idx: idx, name: uname}
+				return
+			}
+
+			qi := QuotaInfo{Entity: fmt.Sprintf("user:%s", uname)}
+			if len(info.VM) > 0 {
+				vmq := info.VM[0]
+				qi.VMs = fmt.Sprintf("%d/%d", vmq.VMsUsed, vmq.VMs)
+				qi.CPU = fmt.Sprintf("%.0f/%d", vmq.CPUUsed, int(vmq.CPU))
+				qi.Memory = fmt.Sprintf("%d/%d MB", vmq.MemoryUsed, vmq.Memory)
+				qi.RunningVMs = fmt.Sprintf("%d/%d", vmq.RunningVMsUsed, vmq.RunningVMs)
+			}
+			if len(info.Datastore) > 0 {
+				dsq := info.Datastore[0]
+				qi.Images = fmt.Sprintf("%d/%d", dsq.ImagesUsed, dsq.Images)
+				qi.Size = fmt.Sprintf("%d/%d MB", dsq.SizeUsed, dsq.Size)
+			}
+			if len(info.Network) > 0 {
+				nq := info.Network[0]
+				qi.Leases = fmt.Sprintf("%d/%d", nq.LeasesUsed, nq.Leases)
+			}
+			results <- result{idx: idx, name: uname, qi: qi}
+		}(i, u.ID, u.Name)
+	}
+
+	out := make([]QuotaInfo, len(userPool.Users))
+	for i := 0; i < len(userPool.Users); i++ {
+		r := <-results
+		if r.qi.Entity == "" {
+			r.qi.Entity = fmt.Sprintf("user:%s", r.name)
 		}
-		if len(u.VM) > 0 {
-			vmq := u.VM[0]
-			qi.VMs = fmt.Sprintf("%d/%d", vmq.VMsUsed, vmq.VMs)
-			qi.CPU = fmt.Sprintf("%.0f/%d", vmq.CPUUsed, int(vmq.CPU))
-			qi.Memory = fmt.Sprintf("%d/%d MB", vmq.MemoryUsed, vmq.Memory)
-			qi.RunningVMs = fmt.Sprintf("%d/%d", vmq.RunningVMsUsed, vmq.RunningVMs)
-		}
-		if len(u.Datastore) > 0 {
-			dsq := u.Datastore[0]
-			qi.Images = fmt.Sprintf("%d/%d", dsq.ImagesUsed, dsq.Images)
-			qi.Size = fmt.Sprintf("%d/%d MB", dsq.SizeUsed, dsq.Size)
-		}
-		if len(u.Network) > 0 {
-			nq := u.Network[0]
-			qi.Leases = fmt.Sprintf("%d/%d", nq.LeasesUsed, nq.Leases)
-		}
-		out = append(out, qi)
+		out[r.idx] = r.qi
 	}
 	return out, nil
 }

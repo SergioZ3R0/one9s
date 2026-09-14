@@ -102,14 +102,13 @@ func (m *aclListModel) viewHeight() int {
 func (m *aclListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.acls)+1)
 
-	header := fmt.Sprintf("%-6s %-20s %-24s %-20s %-12s",
+	header := fmt.Sprintf("%-4s  %-12s  %-42s  %-30s  %s",
 		"ID", "USER", "RESOURCE", "RIGHTS", "ZONE")
 	m.lines = append(m.lines, tableHeader.Render(header))
 
 	for i, a := range m.acls {
-		row := fmt.Sprintf("%-6s %-20s %-24s %-20s %-12s",
-			a.ID, truncate(a.User, 19), truncate(a.Resource, 23),
-			truncate(a.Rights, 19), a.Zone)
+		row := fmt.Sprintf("%-4s  %-12s  %-42s  %-30s  %s",
+			a.ID, a.User, a.Resource, a.Rights, a.Zone)
 		if i == m.cursor {
 			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
