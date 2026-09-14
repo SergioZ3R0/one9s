@@ -5,6 +5,10 @@ import "github.com/charmbracelet/bubbles/key"
 type keyMap struct {
 	Up             key.Binding
 	Down           key.Binding
+	PageUp         key.Binding
+	PageDown       key.Binding
+	Home           key.Binding
+	End            key.Binding
 	Quit           key.Binding
 	Tab            key.Binding
 	Enter          key.Binding
@@ -33,7 +37,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Quit, k.Tab, k.Help},
-		{k.Up, k.Down, k.Search},
+		{k.Up, k.Down, k.PageUp, k.PageDown, k.Home, k.End},
 		{k.Reboot, k.Poweroff, k.Stop, k.Terminate, k.Migrate, k.Logs},
 		{k.FilterAll, k.FilterActive, k.FilterStopped, k.FilterPoweroff, k.FilterError},
 	}
@@ -47,6 +51,22 @@ var keys = keyMap{
 	Down: key.NewBinding(
 		key.WithKeys("down", "j"),
 		key.WithHelp("↓/j", "down"),
+	),
+	PageUp: key.NewBinding(
+		key.WithKeys("pgup", "b"),
+		key.WithHelp("pgup/b", "page up"),
+	),
+	PageDown: key.NewBinding(
+		key.WithKeys("pgdown", "f"),
+		key.WithHelp("pgdn/f", "page down"),
+	),
+	Home: key.NewBinding(
+		key.WithKeys("g"),
+		key.WithHelp("g", "top"),
+	),
+	End: key.NewBinding(
+		key.WithKeys("G"),
+		key.WithHelp("G", "bottom"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),

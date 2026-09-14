@@ -5,17 +5,17 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type dsListModel struct {
 	datastores []dsRow
-	viewport   viewport.Model
 	cursor     int
+	scroll     int
 	width      int
 	height     int
+	lines      []string
 }
 
 type dsRow struct {
@@ -28,9 +28,7 @@ type dsRow struct {
 }
 
 func newDSListModel() dsListModel {
-	return dsListModel{
-		viewport: viewport.New(80, 24),
-	}
+	return dsListModel{}
 }
 
 func (m dsListModel) Init() tea.Cmd { return nil }
@@ -40,8 +38,6 @@ func (m dsListModel) Update(msg tea.Msg) (dsListModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - 3
 		return m, nil
 
 	case datastoresFetchedMsg:
@@ -59,45 +55,90 @@ func (m dsListModel) Update(msg tea.Msg) (dsListModel, tea.Cmd) {
 				Free:  d.Free,
 			})
 		}
-		m.updateContent()
+		m.rebuildLines()
 		return m, nil
 
 	case tea.KeyMsg:
+		viewH := m.viewHeight()
 		switch {
 		case key.Matches(msg, keys.Down):
 			if m.cursor < len(m.datastores)-1 {
 				m.cursor++
+				if m.cursor >= m.scroll+viewH {
+					m.scroll = m.cursor - viewH + 1
+				}
 			}
 		case key.Matches(msg, keys.Up):
 			if m.cursor > 0 {
 				m.cursor--
+				if m.cursor < m.scroll {
+					m.scroll = m.scroll - 1
+				}
 			}
+		case key.Matches(msg, keys.PageDown):
+			m.cursor = min(m.cursor+viewH, max(0, len(m.datastores)-1))
+			m.scroll = min(m.scroll+viewH, max(0, len(m.datastores)-viewH))
+		case key.Matches(msg, keys.PageUp):
+			m.cursor = max(m.cursor-viewH, 0)
+			m.scroll = max(m.scroll-viewH, 0)
+		case key.Matches(msg, keys.Home):
+			m.cursor = 0
+			m.scroll = 0
+		case key.Matches(msg, keys.End):
+			m.cursor = max(0, len(m.datastores)-1)
+			m.scroll = max(0, m.cursor-viewH+1)
 		}
 	}
 
 	return m, nil
 }
 
-func (m *dsListModel) updateContent() {
-	var sb strings.Builder
-	cols := "%-6s %-24s %-10s %-12s %-12s %-12s"
-	header := fmt.Sprintf(cols, "ID", "NAME", "TYPE", "TOTAL", "USED", "FREE")
-	sb.WriteString(tableHeader.Render(header))
-	sb.WriteString("\n")
+func (m *dsListModel) viewHeight() int {
+	h := m.height - 3
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+func (m *dsListModel) rebuildLines() {
+	m.lines = make([]string, 0, len(m.datastores)+1)
+
+	header := fmt.Sprintf("%-6s %-24s %-10s %-12s %-12s %-12s",
+		"ID", "NAME", "TYPE", "TOTAL", "USED", "FREE")
+	m.lines = append(m.lines, tableHeader.Render(header))
 
 	for i, d := range m.datastores {
-		row := fmt.Sprintf(cols, d.ID, truncate(d.Name, 23), d.Type, d.Total, d.Used, d.Free)
+		row := fmt.Sprintf("%-6s %-24s %-10s %-12s %-12s %-12s",
+			d.ID, truncate(d.Name, 23), d.Type, d.Total, d.Used, d.Free)
 		if i == m.cursor {
-			sb.WriteString(lipgloss.NewStyle().Foreground(primary).Bold(true).Render(row))
+			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
-			sb.WriteString(row)
+			m.lines = append(m.lines, row)
 		}
-		sb.WriteString("\n")
 	}
-	m.viewport.SetContent(sb.String())
+
+	// Clamp
+	viewH := m.viewHeight()
+	if m.cursor >= len(m.datastores) {
+		m.cursor = max(0, len(m.datastores)-1)
+	}
+	if m.cursor < m.scroll {
+		m.scroll = m.cursor
+	}
+	if m.cursor >= m.scroll+viewH {
+		m.scroll = m.cursor - viewH + 1
+	}
+	if m.scroll > 0 && m.scroll+viewH > len(m.lines) {
+		m.scroll = max(0, len(m.lines)-viewH)
+	}
 }
 
 func (m dsListModel) View() string {
+	viewH := m.viewHeight()
+	end := min(m.scroll+viewH, len(m.lines))
+	visible := m.lines[m.scroll:end]
+
 	status := statusStyle.Render(fmt.Sprintf(" %d Datastores", len(m.datastores)))
-	return lipgloss.JoinVertical(lipgloss.Left, m.viewport.View(), status)
+	return lipgloss.JoinVertical(lipgloss.Left, strings.Join(visible, "\n"), status)
 }

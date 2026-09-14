@@ -8,25 +8,24 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type vmListModel struct {
 	vms         []VMRow
-	viewport    viewport.Model
 	cursor      int
+	scroll      int
 	filter      textinput.Model
 	filtering   bool
 	filterStr   string
-	stateFilter string // "", "active", "stopped", "poweroff", "error"
+	stateFilter string
 	width       int
 	height      int
 
-	// cached
+	// pre-rendered lines (with ANSI styles applied)
+	lines       []string
 	filtered    []VMRow
-	content     string
 	filterDirty bool
 }
 
@@ -52,7 +51,6 @@ func newVMListModel() vmListModel {
 	ti.CharLimit = 64
 	return vmListModel{
 		filter:      ti,
-		viewport:    viewport.New(80, 24),
 		filterDirty: true,
 	}
 }
@@ -66,8 +64,6 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - 4
 		return m, nil
 
 	case vmsFetchedMsg:
@@ -89,7 +85,7 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			})
 		}
 		m.filterDirty = true
-		m.rebuildContent()
+		m.rebuildLines()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -100,7 +96,7 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 				m.filterStr = m.filter.Value()
 				m.filter.Blur()
 				m.filterDirty = true
-				m.rebuildContent()
+				m.rebuildLines()
 				return m, nil
 			case "esc":
 				m.filtering = false
@@ -112,21 +108,40 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			cmds = append(cmds, cmd)
 			m.filterStr = m.filter.Value()
 			m.filterDirty = true
-			m.rebuildContent()
+			m.rebuildLines()
 			return m, tea.Batch(cmds...)
 		}
+
+		viewH := m.viewHeight()
 
 		switch {
 		case key.Matches(msg, keys.Down):
 			if m.cursor < len(m.getFiltered())-1 {
 				m.cursor++
-				m.updateCursor()
+				if m.cursor >= m.scroll+viewH {
+					m.scroll = m.cursor - viewH + 1
+				}
 			}
 		case key.Matches(msg, keys.Up):
 			if m.cursor > 0 {
 				m.cursor--
-				m.updateCursor()
+				if m.cursor < m.scroll {
+					m.scroll = m.cursor
+				}
 			}
+		case key.Matches(msg, keys.PageDown):
+			m.cursor = min(m.cursor+viewH, len(m.getFiltered())-1)
+			m.scroll = min(m.scroll+viewH, max(0, len(m.getFiltered())-viewH))
+		case key.Matches(msg, keys.PageUp):
+			m.cursor = max(m.cursor-viewH, 0)
+			m.scroll = max(m.scroll-viewH, 0)
+		case key.Matches(msg, keys.Home):
+			m.cursor = 0
+			m.scroll = 0
+		case key.Matches(msg, keys.End):
+			m.cursor = max(0, len(m.getFiltered())-1)
+			m.scroll = max(0, m.cursor-viewH+1)
+
 		case key.Matches(msg, keys.Search):
 			m.filtering = true
 			m.filter.Focus()
@@ -137,27 +152,32 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			m.stateFilter = ""
 			m.filterDirty = true
 			m.cursor = 0
-			m.rebuildContent()
+			m.scroll = 0
+			m.rebuildLines()
 		case key.Matches(msg, keys.FilterActive):
 			m.stateFilter = "active"
 			m.filterDirty = true
 			m.cursor = 0
-			m.rebuildContent()
+			m.scroll = 0
+			m.rebuildLines()
 		case key.Matches(msg, keys.FilterStopped):
 			m.stateFilter = "stopped"
 			m.filterDirty = true
 			m.cursor = 0
-			m.rebuildContent()
+			m.scroll = 0
+			m.rebuildLines()
 		case key.Matches(msg, keys.FilterPoweroff):
 			m.stateFilter = "poweroff"
 			m.filterDirty = true
 			m.cursor = 0
-			m.rebuildContent()
+			m.scroll = 0
+			m.rebuildLines()
 		case key.Matches(msg, keys.FilterError):
 			m.stateFilter = "error"
 			m.filterDirty = true
 			m.cursor = 0
-			m.rebuildContent()
+			m.scroll = 0
+			m.rebuildLines()
 
 		// Actions
 		case key.Matches(msg, keys.Reboot):
@@ -174,6 +194,14 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *vmListModel) viewHeight() int {
+	h := m.height - 4 // header + status + filter
+	if h < 1 {
+		h = 1
+	}
+	return h
 }
 
 func (m *vmListModel) getFiltered() []VMRow {
@@ -205,13 +233,10 @@ func matchesStateFilter(state, filter string) bool {
 
 func (m *vmListModel) computeFiltered() []VMRow {
 	out := make([]VMRow, 0, len(m.vms))
-
 	for _, v := range m.vms {
-		// State filter
 		if !matchesStateFilter(v.State, m.stateFilter) {
 			continue
 		}
-		// Text filter
 		if m.filterStr != "" {
 			needle := strings.ToLower(m.filterStr)
 			haystack := strings.ToLower(
@@ -227,44 +252,46 @@ func (m *vmListModel) computeFiltered() []VMRow {
 	return out
 }
 
-func (m *vmListModel) rebuildContent() {
+func (m *vmListModel) rebuildLines() {
 	filtered := m.getFiltered()
-	var sb strings.Builder
+	m.lines = make([]string, 0, len(filtered)+1)
 
-	sb.WriteString(tableHeader.Render(
+	// Header
+	m.lines = append(m.lines, tableHeader.Render(
 		fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
 			"ID", "NAME", "STATE", "USER", "CPU", "MEM", "IP", "HOST"),
 	))
-	sb.WriteString("\n")
 
+	// Data rows - pre-render with styles
 	for i, v := range filtered {
 		row := fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
 			v.ID, truncate(v.Name, 23), truncate(v.State, 23),
 			truncate(v.User, 11), v.CPU, v.Memory,
 			truncate(v.IP, 15), truncate(v.Host, 15))
 		if i == m.cursor {
-			sb.WriteString(cursorStyle.Render(row))
+			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
-			sb.WriteString(stateStyle(v.State).Render(row))
+			m.lines = append(m.lines, stateStyle(v.State).Render(row))
 		}
-		sb.WriteString("\n")
 	}
 
-	m.content = sb.String()
-	m.viewport.SetContent(m.content)
-
+	// Clamp scroll
+	viewH := m.viewHeight()
 	if m.cursor >= len(filtered) {
 		m.cursor = max(0, len(filtered)-1)
 	}
+	if m.cursor < m.scroll {
+		m.scroll = m.cursor
+	}
+	if m.cursor >= m.scroll+viewH {
+		m.scroll = m.cursor - viewH + 1
+	}
+	if m.scroll > 0 && m.scroll+viewH > len(m.lines) {
+		m.scroll = max(0, len(m.lines)-viewH)
+	}
 }
 
-func (m *vmListModel) updateCursor() {
-	m.viewport.SetContent(m.content)
-	m.viewport.GotoTop()
-	m.viewport.LineDown(m.cursor)
-}
-
-func (m *vmListModel) sendAction(action string) tea.Cmd {
+func (m vmListModel) sendAction(action string) tea.Cmd {
 	return func() tea.Msg {
 		filtered := m.getFiltered()
 		if m.cursor >= len(filtered) {
@@ -277,7 +304,7 @@ func (m *vmListModel) sendAction(action string) tea.Cmd {
 	}
 }
 
-func (m *vmListModel) sshToVM() tea.Cmd {
+func (m vmListModel) sshToVM() tea.Cmd {
 	return func() tea.Msg {
 		filtered := m.getFiltered()
 		if m.cursor >= len(filtered) {
@@ -319,18 +346,25 @@ func stateFilterLabel(f string) string {
 func (m vmListModel) View() string {
 	var parts []string
 
+	// Filter bar
 	if m.filtering {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filter.View())
 	} else if m.filterStr != "" {
-		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc to clear]")
+		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc]")
 	}
 
-	parts = append(parts, m.viewport.View())
+	// Visible window of pre-rendered lines
+	viewH := m.viewHeight()
+	end := min(m.scroll+viewH, len(m.lines))
+	visible := m.lines[m.scroll:end]
+	parts = append(parts, strings.Join(visible, "\n"))
 
+	// Status bar with state filter keys
 	filtered := m.getFiltered()
 	stateLbl := stateFilterLabel(m.stateFilter)
-	status := statusStyle.Render(fmt.Sprintf(" %d/%d VMs  [%s]", len(filtered), len(m.vms), stateLbl))
-	parts = append(parts, status)
+	status := fmt.Sprintf(" %d/%d VMs  [%s]  a:all u:active o:stop p:off e:error",
+		len(filtered), len(m.vms), stateLbl)
+	parts = append(parts, statusStyle.Render(status))
 
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
