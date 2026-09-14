@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/OpenNebula/one/src/oca/go/src/goca"
 	"github.com/OpenNebula/one/src/oca/go/src/goca/schemas/shared"
@@ -48,7 +47,6 @@ func (g *GOCAClient) ListVMs(ctx context.Context) ([]VMInfo, error) {
 			ID:       v.ID,
 			Name:     v.Name,
 			State:    MapVMState(v.StateRaw, v.LCMStateRaw),
-			LCMState: strconv.Itoa(v.LCMStateRaw),
 			User:     v.UName,
 			Group:    v.GName,
 			CPU:      getTemplateStr(&v.Template, "CPU"),
@@ -83,7 +81,7 @@ func (g *GOCAClient) ListHosts(ctx context.Context) ([]HostInfo, error) {
 			State:   MapHostState(h.StateRaw),
 			CPU:     fmt.Sprintf("%.0f%%", cpuPct),
 			Memory:  fmt.Sprintf("%.0f%%", memPct),
-			Cluster: strconv.Itoa(h.ClusterID),
+			Cluster: fmt.Sprintf("%d", h.ClusterID),
 			VMs:     fmt.Sprintf("%d", h.Share.RunningVMs),
 		})
 	}

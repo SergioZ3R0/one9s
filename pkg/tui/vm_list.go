@@ -218,19 +218,15 @@ func matchesStateFilter(state, filter string) bool {
 	}
 	switch filter {
 	case "active":
-		// VMs that are running or in an active transition
-		return strings.HasPrefix(state, "ACTIVE") ||
-			state == "BOOT_SUSPENDED" || state == "HOTPLUG" ||
-			state == "CLONING" || state == "READY" || state == "BOOT"
+		// STATE=3 (ACTIVE) with any LCM sub-state means the VM is running
+		return strings.HasPrefix(state, "ACTIVE")
 	case "stopped":
 		return state == "STOPPED" || state == "SUSPENDED" || state == "HOLD"
 	case "poweroff":
-		return strings.Contains(state, "POWEROFF") || strings.Contains(state, "SHUTDOWN") ||
-			strings.Contains(state, "UNDEPLOYED") || state == "BOOT_POWEROFF" ||
-			state == "BOOT_STOPPED"
+		return state == "POWEROFF" || state == "UNDEPLOYED" || state == "INIT" || state == "PENDING"
 	case "error":
-		return strings.Contains(state, "FAILURE") || strings.Contains(state, "UNKNOWN") ||
-			state == "CLONING_FAILURE" || state == "INIT"
+		// ACTIVE/*FAILURE* or ACTIVE/*UNKNOWN* indicate errors
+		return strings.Contains(state, "FAILURE") || strings.HasSuffix(state, "/UNKNOWN")
 	default:
 		return true
 	}
