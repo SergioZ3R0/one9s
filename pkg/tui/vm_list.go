@@ -14,14 +14,15 @@ import (
 )
 
 type vmListModel struct {
-	vms       []VMRow
-	viewport  viewport.Model
-	cursor    int
-	filter    textinput.Model
-	filtering bool
-	filterStr string
-	width     int
-	height    int
+	vms         []VMRow
+	viewport    viewport.Model
+	cursor      int
+	filter      textinput.Model
+	filtering   bool
+	filterStr   string
+	stateFilter string // "", "active", "stopped", "poweroff", "error"
+	width       int
+	height      int
 
 	// cached
 	filtered    []VMRow
@@ -131,6 +132,35 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			m.filtering = true
 			m.filter.Focus()
 			cmds = append(cmds, textinput.Blink)
+
+		// State filters
+		case key.Matches(msg, keys.FilterAll):
+			m.stateFilter = ""
+			m.filterDirty = true
+			m.cursor = 0
+			m.rebuildContent()
+		case key.Matches(msg, keys.FilterActive):
+			m.stateFilter = "active"
+			m.filterDirty = true
+			m.cursor = 0
+			m.rebuildContent()
+		case key.Matches(msg, keys.FilterStopped):
+			m.stateFilter = "stopped"
+			m.filterDirty = true
+			m.cursor = 0
+			m.rebuildContent()
+		case key.Matches(msg, keys.FilterPoweroff):
+			m.stateFilter = "poweroff"
+			m.filterDirty = true
+			m.cursor = 0
+			m.rebuildContent()
+		case key.Matches(msg, keys.FilterError):
+			m.stateFilter = "error"
+			m.filterDirty = true
+			m.cursor = 0
+			m.rebuildContent()
+
+		// Actions
 		case key.Matches(msg, keys.Reboot):
 			return m, m.sendAction("reboot")
 		case key.Matches(msg, keys.Poweroff):
@@ -155,20 +185,45 @@ func (m *vmListModel) getFiltered() []VMRow {
 	return m.filtered
 }
 
-func (m *vmListModel) computeFiltered() []VMRow {
-	if m.filterStr == "" {
-		return m.vms
+func matchesStateFilter(state, filter string) bool {
+	if filter == "" {
+		return true
 	}
-	needle := strings.ToLower(m.filterStr)
+	switch filter {
+	case "active":
+		return strings.HasPrefix(state, "ACTIVE")
+	case "stopped":
+		return state == "STOPPED" || state == "SUSPENDED" || state == "HOLD"
+	case "poweroff":
+		return strings.Contains(state, "POWEROFF") || strings.Contains(state, "SHUTDOWN") || strings.Contains(state, "UNDEPLOYED")
+	case "error":
+		return strings.Contains(state, "FAILURE") || strings.Contains(state, "UNKNOWN") ||
+			state == "CLONING_FAILURE" || state == "INIT"
+	default:
+		return true
+	}
+}
+
+func (m *vmListModel) computeFiltered() []VMRow {
 	out := make([]VMRow, 0, len(m.vms))
+
 	for _, v := range m.vms {
-		haystack := strings.ToLower(
-			v.ID + " " + v.Name + " " + v.State + " " +
-				v.IP + " " + v.Host + " " + v.User + " " + v.DeployID,
-		)
-		if strings.Contains(haystack, needle) {
-			out = append(out, v)
+		// State filter
+		if !matchesStateFilter(v.State, m.stateFilter) {
+			continue
 		}
+		// Text filter
+		if m.filterStr != "" {
+			needle := strings.ToLower(m.filterStr)
+			haystack := strings.ToLower(
+				v.ID + " " + v.Name + " " + v.State + " " +
+					v.IP + " " + v.Host + " " + v.User + " " + v.DeployID,
+			)
+			if !strings.Contains(haystack, needle) {
+				continue
+			}
+		}
+		out = append(out, v)
 	}
 	return out
 }
@@ -177,14 +232,12 @@ func (m *vmListModel) rebuildContent() {
 	filtered := m.getFiltered()
 	var sb strings.Builder
 
-	// Header
 	sb.WriteString(tableHeader.Render(
 		fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
 			"ID", "NAME", "STATE", "USER", "CPU", "MEM", "IP", "HOST"),
 	))
 	sb.WriteString("\n")
 
-	// Rows
 	for i, v := range filtered {
 		row := fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
 			v.ID, truncate(v.Name, 23), truncate(v.State, 23),
@@ -207,11 +260,6 @@ func (m *vmListModel) rebuildContent() {
 }
 
 func (m *vmListModel) updateCursor() {
-	filtered := m.getFiltered()
-	if m.cursor >= len(filtered) {
-		return
-	}
-	// Fast: just update viewport line offset, no full rebuild
 	m.viewport.SetContent(m.content)
 	m.viewport.GotoTop()
 	m.viewport.LineDown(m.cursor)
@@ -254,6 +302,21 @@ type vmActionMsg struct {
 	action string
 }
 
+func stateFilterLabel(f string) string {
+	switch f {
+	case "active":
+		return "Active"
+	case "stopped":
+		return "Stopped"
+	case "poweroff":
+		return "Poweroff"
+	case "error":
+		return "Error"
+	default:
+		return "All"
+	}
+}
+
 func (m vmListModel) View() string {
 	var parts []string
 
@@ -266,7 +329,8 @@ func (m vmListModel) View() string {
 	parts = append(parts, m.viewport.View())
 
 	filtered := m.getFiltered()
-	status := statusStyle.Render(fmt.Sprintf(" %d/%d VMs", len(filtered), len(m.vms)))
+	stateLbl := stateFilterLabel(m.stateFilter)
+	status := statusStyle.Render(fmt.Sprintf(" %d/%d VMs  [%s]", len(filtered), len(m.vms), stateLbl))
 	parts = append(parts, status)
 
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
