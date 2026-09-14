@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -60,31 +59,31 @@ func (m dsListModel) Update(msg tea.Msg) (dsListModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		viewH := m.viewHeight()
-		switch {
-		case key.Matches(msg, keys.Down):
+		switch msg.String() {
+		case "down", "j":
 			if m.cursor < len(m.datastores)-1 {
 				m.cursor++
 				if m.cursor >= m.scroll+viewH {
 					m.scroll = m.cursor - viewH + 1
 				}
 			}
-		case key.Matches(msg, keys.Up):
+		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
 				if m.cursor < m.scroll {
 					m.scroll = m.scroll - 1
 				}
 			}
-		case key.Matches(msg, keys.PageDown):
+		case "pgdown", "f":
 			m.cursor = min(m.cursor+viewH, max(0, len(m.datastores)-1))
 			m.scroll = min(m.scroll+viewH, max(0, len(m.datastores)-viewH))
-		case key.Matches(msg, keys.PageUp):
+		case "pgup", "b":
 			m.cursor = max(m.cursor-viewH, 0)
 			m.scroll = max(m.scroll-viewH, 0)
-		case key.Matches(msg, keys.Home):
+		case "g":
 			m.cursor = 0
 			m.scroll = 0
-		case key.Matches(msg, keys.End):
+		case "G":
 			m.cursor = max(0, len(m.datastores)-1)
 			m.scroll = max(0, m.cursor-viewH+1)
 		}
@@ -118,7 +117,6 @@ func (m *dsListModel) rebuildLines() {
 		}
 	}
 
-	// Clamp
 	viewH := m.viewHeight()
 	if m.cursor >= len(m.datastores) {
 		m.cursor = max(0, len(m.datastores)-1)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -184,25 +183,24 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		k := msg.String()
+
 		// Global keys
-		switch {
-		case key.Matches(msg, keys.Quit):
+		switch k {
+		case "q", "ctrl+c":
 			m.cancel()
 			return m, tea.Quit
-
-		case key.Matches(msg, keys.Tab):
+		case "tab":
 			m.cycleView()
 			return m, nil
-
-		case key.Matches(msg, keys.Help):
+		case "?":
 			if m.currentView == viewHelp {
 				m.currentView = viewVMs
 			} else {
 				m.currentView = viewHelp
 			}
 			return m, nil
-
-		case key.Matches(msg, keys.Refresh):
+		case "R":
 			if !m.fetching {
 				m.fetching = true
 				return m, m.refreshView()
@@ -212,14 +210,14 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// VM-only keys
 		if m.currentView == viewVMs {
-			switch {
-			case key.Matches(msg, keys.Reboot):
+			switch k {
+			case "r":
 				return m, m.vmList.sendAction("reboot")
-			case key.Matches(msg, keys.Poweroff):
+			case "s":
 				return m, m.vmList.sendAction("poweroff")
-			case key.Matches(msg, keys.Stop):
+			case "x":
 				return m, m.vmList.sendAction("stop")
-			case key.Matches(msg, keys.Terminate):
+			case "d":
 				vmID := m.getSelectedVMID()
 				m.modal = newModal(
 					"Terminate VM",
@@ -229,12 +227,12 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					},
 				)
 				return m, nil
-			case key.Matches(msg, keys.SSH):
+			case "c":
 				return m, m.vmList.sshToVM()
 			}
 		}
 
-		// Forward navigation to active sub-model
+		// Forward ALL keys to active sub-model
 		switch m.currentView {
 		case viewVMs:
 			m.vmList, _ = m.vmList.Update(msg)
