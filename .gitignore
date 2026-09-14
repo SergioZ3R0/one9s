@@ -1,0 +1,13 @@
+# Binaries
+one9s
+one9s.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
