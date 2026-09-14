@@ -218,11 +218,16 @@ func matchesStateFilter(state, filter string) bool {
 	}
 	switch filter {
 	case "active":
-		return strings.HasPrefix(state, "ACTIVE")
+		// VMs that are running or in an active transition
+		return strings.HasPrefix(state, "ACTIVE") ||
+			state == "BOOT_SUSPENDED" || state == "HOTPLUG" ||
+			state == "CLONING" || state == "READY" || state == "BOOT"
 	case "stopped":
 		return state == "STOPPED" || state == "SUSPENDED" || state == "HOLD"
 	case "poweroff":
-		return strings.Contains(state, "POWEROFF") || strings.Contains(state, "SHUTDOWN") || strings.Contains(state, "UNDEPLOYED")
+		return strings.Contains(state, "POWEROFF") || strings.Contains(state, "SHUTDOWN") ||
+			strings.Contains(state, "UNDEPLOYED") || state == "BOOT_POWEROFF" ||
+			state == "BOOT_STOPPED"
 	case "error":
 		return strings.Contains(state, "FAILURE") || strings.Contains(state, "UNKNOWN") ||
 			state == "CLONING_FAILURE" || state == "INIT"
