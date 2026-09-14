@@ -142,7 +142,7 @@ func (m *vmListModel) sendAction(action string) tea.Cmd {
 		}
 		vm := m.filteredVMs()[m.cursor]
 		id := 0
-		fmt.Sscanf(vm.ID, "%d", &id)
+		_, _ = fmt.Sscanf(vm.ID, "%d", &id)
 		return vmActionMsg{id: id, action: action}
 	}
 }

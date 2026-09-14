@@ -6,18 +6,6 @@ import (
 	"github.com/scabello/one9s/internal/client"
 )
 
-// --- View / Navigation messages ---
-
-type viewName string
-
-const (
-	viewVMs        viewName = "vms"
-	viewHosts      viewName = "hosts"
-	viewDatastores viewName = "datastores"
-)
-
-type switchViewMsg struct{ view viewName }
-
 // --- Data fetched messages ---
 
 type vmsFetchedMsg struct {

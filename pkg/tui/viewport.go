@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -15,6 +14,14 @@ import (
 )
 
 const pollInterval = 5 * time.Second
+
+type viewName string
+
+const (
+	viewVMs        viewName = "vms"
+	viewHosts      viewName = "hosts"
+	viewDatastores viewName = "datastores"
+)
 
 // rootModel is the top-level Bubble Tea model that routes between views.
 type rootModel struct {
@@ -26,7 +33,6 @@ type rootModel struct {
 	vmList   vmListModel
 	hostList hostListModel
 	dsList   dsListModel
-	help     viewport.Model // embedded help viewport
 
 	// State
 	currentView viewName
