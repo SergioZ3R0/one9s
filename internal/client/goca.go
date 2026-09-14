@@ -108,6 +108,57 @@ func (g *GOCAClient) ListDatastores(ctx context.Context) ([]DatastoreInfo, error
 	return out, nil
 }
 
+func (g *GOCAClient) ListACLs(ctx context.Context) ([]ACLInfo, error) {
+	pool, err := g.controller.ACLs().InfoContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acl.info: %w", err)
+	}
+	out := make([]ACLInfo, 0, len(pool.ACLs))
+	for i := range pool.ACLs {
+		a := &pool.ACLs[i]
+		out = append(out, ACLInfo{
+			ID:       a.ID,
+			User:     a.User,
+			Resource: a.Resource,
+			Rights:   a.Rights,
+			Zone:     a.Zone,
+		})
+	}
+	return out, nil
+}
+
+func (g *GOCAClient) ListQuotas(ctx context.Context) ([]QuotaInfo, error) {
+	userPool, err := g.controller.Users().InfoContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("userpool.info: %w", err)
+	}
+	out := make([]QuotaInfo, 0, len(userPool.Users))
+	for i := range userPool.Users {
+		u := &userPool.Users[i]
+		qi := QuotaInfo{
+			Entity: fmt.Sprintf("user:%s", u.Name),
+		}
+		if len(u.VM) > 0 {
+			vmq := u.VM[0]
+			qi.VMs = fmt.Sprintf("%d/%d", vmq.VMsUsed, vmq.VMs)
+			qi.CPU = fmt.Sprintf("%.0f/%d", vmq.CPUUsed, int(vmq.CPU))
+			qi.Memory = fmt.Sprintf("%d/%d MB", vmq.MemoryUsed, vmq.Memory)
+			qi.RunningVMs = fmt.Sprintf("%d/%d", vmq.RunningVMsUsed, vmq.RunningVMs)
+		}
+		if len(u.Datastore) > 0 {
+			dsq := u.Datastore[0]
+			qi.Images = fmt.Sprintf("%d/%d", dsq.ImagesUsed, dsq.Images)
+			qi.Size = fmt.Sprintf("%d/%d MB", dsq.SizeUsed, dsq.Size)
+		}
+		if len(u.Network) > 0 {
+			nq := u.Network[0]
+			qi.Leases = fmt.Sprintf("%d/%d", nq.LeasesUsed, nq.Leases)
+		}
+		out = append(out, qi)
+	}
+	return out, nil
+}
+
 func (g *GOCAClient) VMAction(ctx context.Context, id int, action string) error {
 	return g.controller.VM(id).ActionContext(ctx, action)
 }

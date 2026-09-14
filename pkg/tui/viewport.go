@@ -21,20 +21,23 @@ const (
 	viewVMs        viewName = "vms"
 	viewHosts      viewName = "hosts"
 	viewDatastores viewName = "datastores"
+	viewACLs       viewName = "acls"
+	viewQuotas     viewName = "quotas"
 )
 
-// rootModel is the top-level Bubble Tea model that routes between views.
+var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewACLs, viewQuotas}
+
 type rootModel struct {
 	client client.Client
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// Sub-models
 	vmList   vmListModel
 	hostList hostListModel
 	dsList   dsListModel
+	aclList  aclListModel
+	qList    quotaListModel
 
-	// State
 	currentView viewName
 	modal       modalState
 	width       int
@@ -42,7 +45,6 @@ type rootModel struct {
 	err         error
 }
 
-// NewRootModel constructs the root Bubble Tea model.
 func NewRootModel(c client.Client) rootModel {
 	ctx, cancel := context.WithCancel(context.Background())
 	return rootModel{
@@ -52,6 +54,8 @@ func NewRootModel(c client.Client) rootModel {
 		vmList:      newVMListModel(),
 		hostList:    newHostListModel(),
 		dsList:      newDSListModel(),
+		aclList:     newACLListModel(),
+		qList:       newQuotaListModel(),
 		currentView: viewVMs,
 	}
 }
@@ -59,6 +63,10 @@ func NewRootModel(c client.Client) rootModel {
 func (m rootModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.fetchVMs(),
+		m.fetchHosts(),
+		m.fetchDS(),
+		m.fetchACLs(),
+		m.fetchQuotas(),
 		m.tick(),
 	)
 }
@@ -90,10 +98,23 @@ func (m rootModel) fetchDS() tea.Cmd {
 	}
 }
 
+func (m rootModel) fetchACLs() tea.Cmd {
+	return func() tea.Msg {
+		acls, err := m.client.ListACLs(m.ctx)
+		return aclsFetchedMsg{acls: acls, err: err}
+	}
+}
+
+func (m rootModel) fetchQuotas() tea.Cmd {
+	return func() tea.Msg {
+		q, err := m.client.ListQuotas(m.ctx)
+		return quotasFetchedMsg{quotas: q, err: err}
+	}
+}
+
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	// Handle modal first — intercept all keys when active.
 	if m.modal.active {
 		return m.updateModal(msg)
 	}
@@ -102,14 +123,14 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		// Forward to all sub-models
 		m.vmList, _ = m.vmList.Update(msg)
 		m.hostList, _ = m.hostList.Update(msg)
 		m.dsList, _ = m.dsList.Update(msg)
+		m.aclList, _ = m.aclList.Update(msg)
+		m.qList, _ = m.qList.Update(msg)
 		return m, nil
 
 	case tickMsg:
-		// Re-fetch current view data
 		switch m.currentView {
 		case viewVMs:
 			cmds = append(cmds, m.fetchVMs())
@@ -117,6 +138,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.fetchHosts())
 		case viewDatastores:
 			cmds = append(cmds, m.fetchDS())
+		case viewACLs:
+			cmds = append(cmds, m.fetchACLs())
+		case viewQuotas:
+			cmds = append(cmds, m.fetchQuotas())
 		}
 		cmds = append(cmds, m.tick())
 		return m, tea.Batch(cmds...)
@@ -127,6 +152,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.hostList, _ = m.hostList.Update(msg)
 	case datastoresFetchedMsg:
 		m.dsList, _ = m.dsList.Update(msg)
+	case aclsFetchedMsg:
+		m.aclList, _ = m.aclList.Update(msg)
+	case quotasFetchedMsg:
+		m.qList, _ = m.qList.Update(msg)
 
 	case vmActionMsg:
 		return m, m.executeAction(msg.id, msg.action)
@@ -135,7 +164,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.err = msg.err
 		}
-		// Refresh after action
 		cmds = append(cmds, m.fetchVMs())
 		return m, tea.Batch(cmds...)
 
@@ -183,7 +211,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Forward to active sub-model
 		switch m.currentView {
 		case viewVMs:
 			m.vmList, _ = m.vmList.Update(msg)
@@ -191,6 +218,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.hostList, _ = m.hostList.Update(msg)
 		case viewDatastores:
 			m.dsList, _ = m.dsList.Update(msg)
+		case viewACLs:
+			m.aclList, _ = m.aclList.Update(msg)
+		case viewQuotas:
+			m.qList, _ = m.qList.Update(msg)
 		}
 	}
 
@@ -198,13 +229,11 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *rootModel) cycleView() {
-	switch m.currentView {
-	case viewVMs:
-		m.currentView = viewHosts
-	case viewHosts:
-		m.currentView = viewDatastores
-	case viewDatastores:
-		m.currentView = viewVMs
+	for i, v := range allViews {
+		if v == m.currentView {
+			m.currentView = allViews[(i+1)%len(allViews)]
+			return
+		}
 	}
 }
 
@@ -221,12 +250,7 @@ func (m *rootModel) getSelectedVMID() int {
 func (m rootModel) executeAction(id int, action string) tea.Cmd {
 	return func() tea.Msg {
 		err := m.client.VMAction(m.ctx, id, action)
-		return actionResultMsg{
-			resource: "vm",
-			id:       id,
-			action:   action,
-			err:      err,
-		}
+		return actionResultMsg{resource: "vm", id: id, action: action, err: err}
 	}
 }
 
@@ -249,11 +273,12 @@ func (m rootModel) updateModal(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m rootModel) View() string {
-	// Header
 	tabs := []string{
-		m.renderTab("1: VMs", m.currentView == viewVMs),
-		m.renderTab("2: Hosts", m.currentView == viewHosts),
-		m.renderTab("3: Datastores", m.currentView == viewDatastores),
+		m.renderTab("1:VMs", m.currentView == viewVMs),
+		m.renderTab("2:Hosts", m.currentView == viewHosts),
+		m.renderTab("3:DS", m.currentView == viewDatastores),
+		m.renderTab("4:ACLs", m.currentView == viewACLs),
+		m.renderTab("5:Quotas", m.currentView == viewQuotas),
 	}
 	header := headerStyle.Width(m.width).Render(
 		lipgloss.JoinHorizontal(lipgloss.Top,
@@ -263,13 +288,11 @@ func (m rootModel) View() string {
 		),
 	)
 
-	// Error bar
 	var errBar string
 	if m.err != nil {
 		errBar = statePoweroff.Render(" ! " + m.err.Error())
 	}
 
-	// Content
 	var content string
 	switch m.currentView {
 	case viewVMs:
@@ -278,14 +301,16 @@ func (m rootModel) View() string {
 		content = m.hostList.View()
 	case viewDatastores:
 		content = m.dsList.View()
+	case viewACLs:
+		content = m.aclList.View()
+	case viewQuotas:
+		content = m.qList.View()
 	}
 
-	// Status bar
-	status := statusStyle.Render(" q:quit  tab:switch  /:filter  ?:help")
+	status := statusStyle.Render(" q:quit  tab:switch  /:filter")
 
 	view := lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
 
-	// Render modal as centered overlay if active
 	if m.modal.active {
 		modalW := min(60, m.width-4)
 		modalH := 8
@@ -293,7 +318,6 @@ func (m rootModel) View() string {
 		y := (m.height - modalH) / 2
 		modalStr := modalBox.Width(modalW).Render(m.modal.View())
 		lines := strings.Split(view, "\n")
-		// Place modal over the center of the output
 		for i, line := range lines {
 			if i >= y && i < y+modalH {
 				modalLine := modalStr

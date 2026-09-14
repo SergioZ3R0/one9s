@@ -23,6 +23,16 @@ type datastoresFetchedMsg struct {
 	err        error
 }
 
+type aclsFetchedMsg struct {
+	acls []client.ACLInfo
+	err  error
+}
+
+type quotasFetchedMsg struct {
+	quotas []client.QuotaInfo
+	err    error
+}
+
 // --- Polling ---
 
 type tickMsg time.Time

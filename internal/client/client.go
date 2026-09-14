@@ -43,11 +43,34 @@ type DatastoreInfo struct {
 	Free  string
 }
 
+// ACLInfo holds flattened ACL fields for the TUI.
+type ACLInfo struct {
+	ID       int
+	User     string
+	Resource string
+	Rights   string
+	Zone     string
+}
+
+// QuotaInfo holds flattened quota fields for the TUI.
+type QuotaInfo struct {
+	Entity     string // "user:oneadmin" or "group:oneadmin"
+	VMs        string // used/limit
+	CPU        string
+	Memory     string
+	RunningVMs string
+	Images     string
+	Size       string
+	Leases     string
+}
+
 // Client is the interface the TUI layer programs against.
 type Client interface {
 	ListVMs(ctx context.Context) ([]VMInfo, error)
 	ListHosts(ctx context.Context) ([]HostInfo, error)
 	ListDatastores(ctx context.Context) ([]DatastoreInfo, error)
+	ListACLs(ctx context.Context) ([]ACLInfo, error)
+	ListQuotas(ctx context.Context) ([]QuotaInfo, error)
 	VMAction(ctx context.Context, id int, action string) error
 	VMMigrate(ctx context.Context, id, hostID int, live bool) error
 	GetHostIDByName(ctx context.Context, name string) (int, error)
