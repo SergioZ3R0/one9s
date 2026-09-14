@@ -50,12 +50,6 @@ var (
 	stateSuspend  = lipgloss.NewStyle().Foreground(warning)
 	stateDefault  = lipgloss.NewStyle().Foreground(dim)
 
-	// Modal
-	modalBox = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(danger).
-			Padding(1, 2)
-
 	// Filter input
 	filterStyle = lipgloss.NewStyle().
 			Foreground(accent).
