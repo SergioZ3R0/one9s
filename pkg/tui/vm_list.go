@@ -22,6 +22,11 @@ type vmListModel struct {
 	filterStr string
 	width     int
 	height    int
+
+	// cached
+	filtered    []VMRow
+	content     string
+	filterDirty bool
 }
 
 type VMRow struct {
@@ -36,19 +41,23 @@ type VMRow struct {
 	DeployID string
 }
 
+var (
+	selectedStyle = lipgloss.NewStyle().Foreground(primary).Bold(true)
+	cursorStyle   = lipgloss.NewStyle().Foreground(accent).Bold(true).Reverse(true)
+)
+
 func newVMListModel() vmListModel {
 	ti := textinput.New()
 	ti.Placeholder = "filter vms..."
 	ti.CharLimit = 64
 	return vmListModel{
-		filter:   ti,
-		viewport: viewport.New(80, 24),
+		filter:      ti,
+		viewport:    viewport.New(80, 24),
+		filterDirty: true,
 	}
 }
 
-func (m vmListModel) Init() tea.Cmd {
-	return nil
-}
+func (m vmListModel) Init() tea.Cmd { return nil }
 
 func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -58,7 +67,7 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - 4 // header + status + filter
+		m.viewport.Height = msg.Height - 4
 		return m, nil
 
 	case vmsFetchedMsg:
@@ -79,7 +88,8 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 				DeployID: v.DeployID,
 			})
 		}
-		m.updateViewportContent()
+		m.filterDirty = true
+		m.rebuildContent()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -89,7 +99,8 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 				m.filtering = false
 				m.filterStr = m.filter.Value()
 				m.filter.Blur()
-				m.updateViewportContent()
+				m.filterDirty = true
+				m.rebuildContent()
 				return m, nil
 			case "esc":
 				m.filtering = false
@@ -100,20 +111,21 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			m.filter, cmd = m.filter.Update(msg)
 			cmds = append(cmds, cmd)
 			m.filterStr = m.filter.Value()
-			m.updateViewportContent()
+			m.filterDirty = true
+			m.rebuildContent()
 			return m, tea.Batch(cmds...)
 		}
 
 		switch {
 		case key.Matches(msg, keys.Down):
-			if m.cursor < len(m.filteredVMs())-1 {
+			if m.cursor < len(m.getFiltered())-1 {
 				m.cursor++
-				m.ensureVisible()
+				m.updateCursor()
 			}
 		case key.Matches(msg, keys.Up):
 			if m.cursor > 0 {
 				m.cursor--
-				m.ensureVisible()
+				m.updateCursor()
 			}
 		case key.Matches(msg, keys.Search):
 			m.filtering = true
@@ -135,12 +147,83 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *vmListModel) getFiltered() []VMRow {
+	if m.filterDirty {
+		m.filtered = m.computeFiltered()
+		m.filterDirty = false
+	}
+	return m.filtered
+}
+
+func (m *vmListModel) computeFiltered() []VMRow {
+	if m.filterStr == "" {
+		return m.vms
+	}
+	needle := strings.ToLower(m.filterStr)
+	out := make([]VMRow, 0, len(m.vms))
+	for _, v := range m.vms {
+		haystack := strings.ToLower(
+			v.ID + " " + v.Name + " " + v.State + " " +
+				v.IP + " " + v.Host + " " + v.User + " " + v.DeployID,
+		)
+		if strings.Contains(haystack, needle) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func (m *vmListModel) rebuildContent() {
+	filtered := m.getFiltered()
+	var sb strings.Builder
+
+	// Header
+	sb.WriteString(tableHeader.Render(
+		fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
+			"ID", "NAME", "STATE", "USER", "CPU", "MEM", "IP", "HOST"),
+	))
+	sb.WriteString("\n")
+
+	// Rows
+	for i, v := range filtered {
+		row := fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
+			v.ID, truncate(v.Name, 23), truncate(v.State, 23),
+			truncate(v.User, 11), v.CPU, v.Memory,
+			truncate(v.IP, 15), truncate(v.Host, 15))
+		if i == m.cursor {
+			sb.WriteString(cursorStyle.Render(row))
+		} else {
+			sb.WriteString(stateStyle(v.State).Render(row))
+		}
+		sb.WriteString("\n")
+	}
+
+	m.content = sb.String()
+	m.viewport.SetContent(m.content)
+
+	if m.cursor >= len(filtered) {
+		m.cursor = max(0, len(filtered)-1)
+	}
+}
+
+func (m *vmListModel) updateCursor() {
+	filtered := m.getFiltered()
+	if m.cursor >= len(filtered) {
+		return
+	}
+	// Fast: just update viewport line offset, no full rebuild
+	m.viewport.SetContent(m.content)
+	m.viewport.GotoTop()
+	m.viewport.LineDown(m.cursor)
+}
+
 func (m *vmListModel) sendAction(action string) tea.Cmd {
 	return func() tea.Msg {
-		if m.cursor >= len(m.filteredVMs()) {
+		filtered := m.getFiltered()
+		if m.cursor >= len(filtered) {
 			return nil
 		}
-		vm := m.filteredVMs()[m.cursor]
+		vm := filtered[m.cursor]
 		id := 0
 		_, _ = fmt.Sscanf(vm.ID, "%d", &id)
 		return vmActionMsg{id: id, action: action}
@@ -149,10 +232,11 @@ func (m *vmListModel) sendAction(action string) tea.Cmd {
 
 func (m *vmListModel) sshToVM() tea.Cmd {
 	return func() tea.Msg {
-		if m.cursor >= len(m.filteredVMs()) {
+		filtered := m.getFiltered()
+		if m.cursor >= len(filtered) {
 			return nil
 		}
-		vm := m.filteredVMs()[m.cursor]
+		vm := filtered[m.cursor]
 		if vm.IP == "" {
 			return errorMsg{err: fmt.Errorf("VM %s has no IP", vm.Name)}
 		}
@@ -170,86 +254,18 @@ type vmActionMsg struct {
 	action string
 }
 
-func (m *vmListModel) filteredVMs() []VMRow {
-	if m.filterStr == "" {
-		return m.vms
-	}
-	needle := strings.ToLower(m.filterStr)
-	var out []VMRow
-	for _, v := range m.vms {
-		haystack := strings.ToLower(
-			strings.Join([]string{v.ID, v.Name, v.State, v.IP, v.Host, v.User, v.DeployID}, " "),
-		)
-		if strings.Contains(haystack, needle) {
-			out = append(out, v)
-		}
-	}
-	return out
-}
-
-func (m *vmListModel) updateViewportContent() {
-	filtered := m.filteredVMs()
-	var sb strings.Builder
-
-	// Table header
-	cols := []struct{ title, w string }{
-		{"ID", "6"}, {"NAME", "24"}, {"STATE", "24"}, {"USER", "12"},
-		{"CPU", "6"}, {"MEM", "8"}, {"IP", "16"}, {"HOST", "16"},
-	}
-	for _, c := range cols {
-		sb.WriteString(tableHeader.Width(0).Render(
-			lipgloss.NewStyle().Width(0).Render(
-				fmt.Sprintf("%-6s", c.title),
-			),
-		))
-		sb.WriteString(" ")
-	}
-	sb.WriteString("\n")
-
-	for i, v := range filtered {
-		row := fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
-			v.ID, truncate(v.Name, 23), truncate(v.State, 23),
-			truncate(v.User, 11), v.CPU, v.Memory,
-			truncate(v.IP, 15), truncate(v.Host, 15))
-		if i == m.cursor {
-			sb.WriteString(lipgloss.NewStyle().Foreground(primary).Bold(true).Render(row))
-		} else {
-			sb.WriteString(stateStyle(v.State).Render(row))
-		}
-		sb.WriteString("\n")
-	}
-
-	m.viewport.SetContent(sb.String())
-	if m.cursor >= len(filtered) {
-		m.cursor = max(0, len(filtered)-1)
-	}
-}
-
-func (m *vmListModel) ensureVisible() {
-	filtered := m.filteredVMs()
-	if m.cursor >= len(filtered) {
-		return
-	}
-	lineHeight := 1
-	m.viewport.GotoTop()
-	m.viewport.LineDown(m.cursor * lineHeight)
-}
-
 func (m vmListModel) View() string {
 	var parts []string
 
-	// Filter bar
 	if m.filtering {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filter.View())
 	} else if m.filterStr != "" {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc to clear]")
 	}
 
-	// Table
 	parts = append(parts, m.viewport.View())
 
-	// Status
-	filtered := m.filteredVMs()
+	filtered := m.getFiltered()
 	status := statusStyle.Render(fmt.Sprintf(" %d/%d VMs", len(filtered), len(m.vms)))
 	parts = append(parts, status)
 

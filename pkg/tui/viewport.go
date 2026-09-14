@@ -209,10 +209,10 @@ func (m *rootModel) cycleView() {
 }
 
 func (m *rootModel) getSelectedVMID() int {
-	if m.vmList.cursor >= len(m.vmList.filteredVMs()) {
+	if m.vmList.cursor >= len(m.vmList.getFiltered()) {
 		return -1
 	}
-	vm := m.vmList.filteredVMs()[m.vmList.cursor]
+	vm := m.vmList.getFiltered()[m.vmList.cursor]
 	id := 0
 	_, _ = fmt.Sscanf(vm.ID, "%d", &id)
 	return id
