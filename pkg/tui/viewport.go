@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,8 +11,6 @@ import (
 
 	"github.com/scabello/one9s/internal/client"
 )
-
-const pollInterval = 10 * time.Second
 
 type viewName string
 
@@ -69,14 +66,23 @@ func (m rootModel) Init() tea.Cmd {
 		m.fetchDS(),
 		m.fetchACLs(),
 		m.fetchQuotas(),
-		m.tick(),
 	)
 }
 
-func (m rootModel) tick() tea.Cmd {
-	return tea.Tick(pollInterval, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
+func (m rootModel) refreshView() tea.Cmd {
+	switch m.currentView {
+	case viewVMs:
+		return m.fetchVMs()
+	case viewHosts:
+		return m.fetchHosts()
+	case viewDatastores:
+		return m.fetchDS()
+	case viewACLs:
+		return m.fetchACLs()
+	case viewQuotas:
+		return m.fetchQuotas()
+	}
+	return nil
 }
 
 func (m rootModel) fetchVMs() tea.Cmd {
@@ -147,25 +153,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.qList, _ = m.qList.Update(msg)
 		return m, nil
 
-	case tickMsg:
-		if !m.fetching {
-			m.fetching = true
-			switch m.currentView {
-			case viewVMs:
-				cmds = append(cmds, m.fetchVMs())
-			case viewHosts:
-				cmds = append(cmds, m.fetchHosts())
-			case viewDatastores:
-				cmds = append(cmds, m.fetchDS())
-			case viewACLs:
-				cmds = append(cmds, m.fetchACLs())
-			case viewQuotas:
-				cmds = append(cmds, m.fetchQuotas())
-			}
-		}
-		cmds = append(cmds, m.tick())
-		return m, tea.Batch(cmds...)
-
 	case vmsFetchedMsg:
 		m.fetching = false
 		m.vmList, _ = m.vmList.Update(msg)
@@ -197,7 +184,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// Global keys (work on any view)
+		// Global keys
 		switch {
 		case key.Matches(msg, keys.Quit):
 			m.cancel()
@@ -212,6 +199,13 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentView = viewVMs
 			} else {
 				m.currentView = viewHelp
+			}
+			return m, nil
+
+		case key.Matches(msg, keys.Refresh):
+			if !m.fetching {
+				m.fetching = true
+				return m, m.refreshView()
 			}
 			return m, nil
 		}
@@ -240,7 +234,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Forward navigation keys to active sub-model
+		// Forward navigation to active sub-model
 		switch m.currentView {
 		case viewVMs:
 			m.vmList, _ = m.vmList.Update(msg)
@@ -322,7 +316,7 @@ func (m rootModel) View() string {
 		content = m.helpView()
 	}
 
-	status := statusStyle.Render(" q:quit  tab:switch  /:filter  ?:help")
+	status := statusStyle.Render(" q:quit  tab:switch  R:refresh  /:filter  ?:help")
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
 }
@@ -365,6 +359,7 @@ func (m rootModel) helpView() string {
 
 	b.WriteString(tableHeader.Render("General"))
 	b.WriteString("\n")
+	b.WriteString("  R         Refresh current view\n")
 	b.WriteString("  ?         Toggle this help\n")
 	b.WriteString("  q         Quit\n")
 

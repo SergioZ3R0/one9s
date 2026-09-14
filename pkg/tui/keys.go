@@ -13,6 +13,7 @@ type keyMap struct {
 	Tab            key.Binding
 	Enter          key.Binding
 	Search         key.Binding
+	Refresh        key.Binding
 	Reboot         key.Binding
 	Poweroff       key.Binding
 	Terminate      key.Binding
@@ -83,6 +84,10 @@ var keys = keyMap{
 	Search: key.NewBinding(
 		key.WithKeys("/"),
 		key.WithHelp("/", "search"),
+	),
+	Refresh: key.NewBinding(
+		key.WithKeys("R"),
+		key.WithHelp("R", "refresh"),
 	),
 	Reboot: key.NewBinding(
 		key.WithKeys("r"),
