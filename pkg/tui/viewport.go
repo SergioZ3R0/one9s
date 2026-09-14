@@ -23,9 +23,10 @@ const (
 	viewDatastores viewName = "datastores"
 	viewACLs       viewName = "acls"
 	viewQuotas     viewName = "quotas"
+	viewHelp       viewName = "help"
 )
 
-var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewACLs, viewQuotas}
+var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewACLs, viewQuotas, viewHelp}
 
 type rootModel struct {
 	client client.Client
@@ -40,12 +41,10 @@ type rootModel struct {
 
 	currentView viewName
 	modal       modalState
-	showHelp    bool
 	fetching    bool
 	width       int
 	height      int
 	err         error
-	lastFetch   time.Time
 }
 
 func NewRootModel(c client.Client) rootModel {
@@ -118,16 +117,19 @@ func (m rootModel) fetchQuotas() tea.Cmd {
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	// Modal intercepts ALL keys
 	if m.modal.active {
-		return m.updateModal(msg)
-	}
-
-	// Help overlay intercepts all keys except quit and esc
-	if m.showHelp {
 		if k, ok := msg.(tea.KeyMsg); ok {
 			switch k.String() {
-			case "q", "esc", "?":
-				m.showHelp = false
+			case "y", "enter":
+				cmd := m.modal.cmd
+				m.modal.active = false
+				if cmd != nil {
+					return m, cmd
+				}
+				return m, nil
+			case "n", "esc":
+				m.modal.active = false
 				return m, nil
 			}
 		}
@@ -146,7 +148,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tickMsg:
-		// Skip poll if already fetching
 		if !m.fetching {
 			m.fetching = true
 			switch m.currentView {
@@ -167,23 +168,18 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case vmsFetchedMsg:
 		m.fetching = false
-		m.lastFetch = time.Now()
 		m.vmList, _ = m.vmList.Update(msg)
 	case hostsFetchedMsg:
 		m.fetching = false
-		m.lastFetch = time.Now()
 		m.hostList, _ = m.hostList.Update(msg)
 	case datastoresFetchedMsg:
 		m.fetching = false
-		m.lastFetch = time.Now()
 		m.dsList, _ = m.dsList.Update(msg)
 	case aclsFetchedMsg:
 		m.fetching = false
-		m.lastFetch = time.Now()
 		m.aclList, _ = m.aclList.Update(msg)
 	case quotasFetchedMsg:
 		m.fetching = false
-		m.lastFetch = time.Now()
 		m.qList, _ = m.qList.Update(msg)
 
 	case vmActionMsg:
@@ -201,33 +197,35 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Global keys (work on any view)
 		switch {
 		case key.Matches(msg, keys.Quit):
 			m.cancel()
 			return m, tea.Quit
 
-		case key.Matches(msg, keys.Help):
-			m.showHelp = true
-			return m, nil
-
 		case key.Matches(msg, keys.Tab):
 			m.cycleView()
 			return m, nil
 
-		case key.Matches(msg, keys.Reboot):
-			if m.currentView == viewVMs {
+		case key.Matches(msg, keys.Help):
+			if m.currentView == viewHelp {
+				m.currentView = viewVMs
+			} else {
+				m.currentView = viewHelp
+			}
+			return m, nil
+		}
+
+		// VM-only keys
+		if m.currentView == viewVMs {
+			switch {
+			case key.Matches(msg, keys.Reboot):
 				return m, m.vmList.sendAction("reboot")
-			}
-		case key.Matches(msg, keys.Poweroff):
-			if m.currentView == viewVMs {
+			case key.Matches(msg, keys.Poweroff):
 				return m, m.vmList.sendAction("poweroff")
-			}
-		case key.Matches(msg, keys.Stop):
-			if m.currentView == viewVMs {
+			case key.Matches(msg, keys.Stop):
 				return m, m.vmList.sendAction("stop")
-			}
-		case key.Matches(msg, keys.Terminate):
-			if m.currentView == viewVMs {
+			case key.Matches(msg, keys.Terminate):
 				vmID := m.getSelectedVMID()
 				m.modal = newModal(
 					"Terminate VM",
@@ -237,13 +235,12 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					},
 				)
 				return m, nil
-			}
-		case key.Matches(msg, keys.SSH):
-			if m.currentView == viewVMs {
+			case key.Matches(msg, keys.SSH):
 				return m, m.vmList.sshToVM()
 			}
 		}
 
+		// Forward navigation keys to active sub-model
 		switch m.currentView {
 		case viewVMs:
 			m.vmList, _ = m.vmList.Update(msg)
@@ -287,24 +284,6 @@ func (m rootModel) executeAction(id int, action string) tea.Cmd {
 	}
 }
 
-func (m rootModel) updateModal(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if k, ok := msg.(tea.KeyMsg); ok {
-		switch k.String() {
-		case "y", "enter":
-			cmd := m.modal.cmd
-			m.modal.active = false
-			if cmd != nil {
-				return m, cmd
-			}
-			return m, nil
-		case "n", "esc":
-			m.modal.active = false
-			return m, nil
-		}
-	}
-	return m, nil
-}
-
 func (m rootModel) View() string {
 	tabs := []string{
 		m.renderTab("1:VMs", m.currentView == viewVMs),
@@ -312,6 +291,7 @@ func (m rootModel) View() string {
 		m.renderTab("3:DS", m.currentView == viewDatastores),
 		m.renderTab("4:ACLs", m.currentView == viewACLs),
 		m.renderTab("5:Quotas", m.currentView == viewQuotas),
+		m.renderTab("?:Help", m.currentView == viewHelp),
 	}
 	header := headerStyle.Width(m.width).Render(
 		lipgloss.JoinHorizontal(lipgloss.Top,
@@ -338,43 +318,21 @@ func (m rootModel) View() string {
 		content = m.aclList.View()
 	case viewQuotas:
 		content = m.qList.View()
+	case viewHelp:
+		content = m.helpView()
 	}
 
 	status := statusStyle.Render(" q:quit  tab:switch  /:filter  ?:help")
 
-	view := lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
-
-	if m.modal.active {
-		view = m.renderOverlay(view, m.modalBoxContent(), 60, 8)
-	}
-
-	if m.showHelp {
-		view = m.renderOverlay(view, m.helpContent(), 70, 20)
-	}
-
-	return view
+	return lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
 }
 
-func (m rootModel) modalBoxContent() string {
-	return fmt.Sprintf(
-		"%s\n\n%s\n\n%s",
-		titleStyle.Render(m.modal.title),
-		m.modal.message,
-		lipgloss.JoinHorizontal(lipgloss.Top,
-			stateRunning.Render("[y] Yes"),
-			"  ",
-			statePoweroff.Render("[n] No"),
-		),
-	)
-}
-
-func (m rootModel) helpContent() string {
+func (m rootModel) helpView() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render(" one9s - Keyboard Shortcuts"))
 	b.WriteString("\n\n")
 
-	// Navigation
 	b.WriteString(tableHeader.Render("Navigation"))
 	b.WriteString("\n")
 	b.WriteString("  tab       Next view\n")
@@ -388,69 +346,29 @@ func (m rootModel) helpContent() string {
 	b.WriteString("  esc       Clear filter\n")
 	b.WriteString("\n")
 
-	// VM actions (only show on VM tab)
-	if m.currentView == viewVMs {
-		b.WriteString(tableHeader.Render("VM Actions"))
-		b.WriteString("\n")
-		b.WriteString("  r         Reboot\n")
-		b.WriteString("  s         Poweroff\n")
-		b.WriteString("  x         Stop\n")
-		b.WriteString("  d         Terminate (hard)\n")
-		b.WriteString("\n")
+	b.WriteString(tableHeader.Render("VM Actions (VMs tab only)"))
+	b.WriteString("\n")
+	b.WriteString("  r         Reboot\n")
+	b.WriteString("  s         Poweroff\n")
+	b.WriteString("  x         Stop\n")
+	b.WriteString("  d         Terminate (hard)\n")
+	b.WriteString("\n")
 
-		b.WriteString(tableHeader.Render("VM State Filters"))
-		b.WriteString("\n")
-		b.WriteString("  a         Show all VMs\n")
-		b.WriteString("  u         Active only\n")
-		b.WriteString("  o         Stopped only\n")
-		b.WriteString("  p         Poweroff only\n")
-		b.WriteString("  e         Error only\n")
-		b.WriteString("\n")
-	}
+	b.WriteString(tableHeader.Render("VM State Filters (VMs tab only)"))
+	b.WriteString("\n")
+	b.WriteString("  a         Show all VMs\n")
+	b.WriteString("  u         Active only\n")
+	b.WriteString("  o         Stopped only\n")
+	b.WriteString("  p         Poweroff only\n")
+	b.WriteString("  e         Error only\n")
+	b.WriteString("\n")
 
-	// General
 	b.WriteString(tableHeader.Render("General"))
 	b.WriteString("\n")
 	b.WriteString("  ?         Toggle this help\n")
 	b.WriteString("  q         Quit\n")
 
 	return b.String()
-}
-
-func (m rootModel) renderOverlay(base string, content string, w, h int) string {
-	lines := strings.Split(base, "\n")
-	x := (m.width - w) / 2
-	y := (m.height - h) / 2
-	if x < 0 {
-		x = 0
-	}
-	if y < 0 {
-		y = 0
-	}
-
-	contentLines := strings.Split(content, "\n")
-	for i := 0; i < h && i < len(contentLines); i++ {
-		clipped := contentLines[i]
-		if len(clipped) > w {
-			clipped = clipped[:w]
-		}
-		lineIdx := y + i
-		if lineIdx >= len(lines) {
-			break
-		}
-		line := lines[lineIdx]
-		prefix := ""
-		if x > 0 && x <= len(line) {
-			prefix = line[:x]
-		}
-		suffix := ""
-		if x+len(clipped) < len(line) {
-			suffix = line[x+len(clipped):]
-		}
-		lines[lineIdx] = prefix + clipped + suffix
-	}
-
-	return strings.Join(lines, "\n")
 }
 
 func (m rootModel) renderTab(label string, active bool) string {
