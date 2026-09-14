@@ -50,6 +50,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
         run: |
           go build -o one9s${{ matrix.suffix }} ./cmd/one9s
           zip "one9s-${{ matrix.goos }}-${{ matrix.goarch }}.zip" one9s${{ matrix.suffix }} LICENSE

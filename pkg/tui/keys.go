@@ -3,22 +3,22 @@ package tui
 import "github.com/charmbracelet/bubbles/key"
 
 type keyMap struct {
-	Up         key.Binding
-	Down       key.Binding
-	Quit       key.Binding
-	Tab        key.Binding
-	Enter      key.Binding
-	Search     key.Binding
-	Reboot     key.Binding
-	Poweroff   key.Binding
-	Terminate  key.Binding
-	Stop       key.Binding
-	Migrate    key.Binding
-	Logs       key.Binding
-	SSH        key.Binding
-	Confirm    key.Binding
-	Cancel     key.Binding
-	Help       key.Binding
+	Up        key.Binding
+	Down      key.Binding
+	Quit      key.Binding
+	Tab       key.Binding
+	Enter     key.Binding
+	Search    key.Binding
+	Reboot    key.Binding
+	Poweroff  key.Binding
+	Terminate key.Binding
+	Stop      key.Binding
+	Migrate   key.Binding
+	Logs      key.Binding
+	SSH       key.Binding
+	Confirm   key.Binding
+	Cancel    key.Binding
+	Help      key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {

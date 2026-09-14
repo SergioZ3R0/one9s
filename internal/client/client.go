@@ -24,23 +24,23 @@ type VMInfo struct {
 
 // HostInfo holds flattened host fields for the TUI.
 type HostInfo struct {
-	ID       int
-	Name     string
-	State    string
-	CPU      string
-	Memory   string
-	Cluster  string
-	VMs      string
+	ID      int
+	Name    string
+	State   string
+	CPU     string
+	Memory  string
+	Cluster string
+	VMs     string
 }
 
 // DatastoreInfo holds flattened datastore fields for the TUI.
 type DatastoreInfo struct {
-	ID      int
-	Name    string
-	Type    string
-	Total   string
-	Used    string
-	Free    string
+	ID    int
+	Name  string
+	Type  string
+	Total string
+	Used  string
+	Free  string
 }
 
 // Client is the interface the TUI layer programs against.

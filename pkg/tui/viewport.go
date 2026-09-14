@@ -18,15 +18,15 @@ const pollInterval = 5 * time.Second
 
 // rootModel is the top-level Bubble Tea model that routes between views.
 type rootModel struct {
-	client     client.Client
-	ctx        context.Context
-	cancel     context.CancelFunc
+	client client.Client
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// Sub-models
-	vmList      vmListModel
-	hostList    hostListModel
-	dsList      dsListModel
-	help        viewport.Model // embedded help viewport
+	vmList   vmListModel
+	hostList hostListModel
+	dsList   dsListModel
+	help     viewport.Model // embedded help viewport
 
 	// State
 	currentView viewName

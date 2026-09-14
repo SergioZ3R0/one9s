@@ -11,8 +11,8 @@ import (
 type viewName string
 
 const (
-	viewVMs      viewName = "vms"
-	viewHosts    viewName = "hosts"
+	viewVMs        viewName = "vms"
+	viewHosts      viewName = "hosts"
 	viewDatastores viewName = "datastores"
 )
 
@@ -27,12 +27,12 @@ type vmsFetchedMsg struct {
 
 type hostsFetchedMsg struct {
 	hosts []client.HostInfo
-	err error
+	err   error
 }
 
 type datastoresFetchedMsg struct {
 	datastores []client.DatastoreInfo
-	err error
+	err        error
 }
 
 // --- Polling ---

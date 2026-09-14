@@ -8,13 +8,13 @@ import (
 
 var (
 	// Base colors
-	primary   = lipgloss.Color("#7C3AED")
-	accent    = lipgloss.Color("#06B6D4")
-	success   = lipgloss.Color("#22C55E")
-	warning   = lipgloss.Color("#F59E0B")
-	danger    = lipgloss.Color("#EF4444")
-	dim       = lipgloss.Color("#6B7280")
-	bright    = lipgloss.Color("#F9FAFB")
+	primary = lipgloss.Color("#7C3AED")
+	accent  = lipgloss.Color("#06B6D4")
+	success = lipgloss.Color("#22C55E")
+	warning = lipgloss.Color("#F59E0B")
+	danger  = lipgloss.Color("#EF4444")
+	dim     = lipgloss.Color("#6B7280")
+	bright  = lipgloss.Color("#F9FAFB")
 
 	// Header bar
 	headerStyle = lipgloss.NewStyle().
