@@ -244,7 +244,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cancel()
 			return m, tea.Quit
 		case "tab":
-			m.cycleView()
+			m.cycleView(1)
+			return m, nil
+		case "shift+tab":
+			m.cycleView(-1)
 			return m, nil
 		case "?":
 			if m.currentView == viewHelp {
@@ -338,10 +341,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *rootModel) cycleView() {
+func (m *rootModel) cycleView(dir int) {
 	for i, v := range allViews {
 		if v == m.currentView {
-			m.currentView = allViews[(i+1)%len(allViews)]
+			m.currentView = allViews[(i+dir+len(allViews))%len(allViews)]
 			return
 		}
 	}
@@ -499,6 +502,7 @@ func (m rootModel) helpView() string {
 	b.WriteString(tableHeader.Render("Navigation"))
 	b.WriteString("\n")
 	b.WriteString("  tab       Next view\n")
+	b.WriteString("  shift+tab Previous view\n")
 	b.WriteString("  ↑/k       Move up\n")
 	b.WriteString("  ↓/j       Move down\n")
 	b.WriteString("  pgup/b    Page up\n")
