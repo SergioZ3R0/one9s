@@ -246,7 +246,7 @@ func (m *vmListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(filtered)+1)
 
 	m.lines = append(m.lines, tableHeader.Render(
-		fmt.Sprintf("%-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
+		fmt.Sprintf("  %-6s %-24s %-24s %-12s %-6s %-8s %-16s %-16s",
 			"ID", "NAME", "STATE", "USER", "CPU", "MEM", "IP", "HOST"),
 	))
 
@@ -256,9 +256,9 @@ func (m *vmListModel) rebuildLines() {
 			truncate(v.User, 11), v.CPU, v.Memory,
 			truncate(v.IP, 15), truncate(v.Host, 15))
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render(row))
+			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
 		} else {
-			m.lines = append(m.lines, stateStyle(v.State).Render(row))
+			m.lines = append(m.lines, "  "+stateStyle(v.State).Render(row))
 		}
 	}
 

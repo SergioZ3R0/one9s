@@ -113,9 +113,9 @@ func (m *hostListModel) rebuildLines() {
 		row := fmt.Sprintf("%-6s %-24s %-12s %-8s %-8s %-10s %-8s",
 			h.ID, truncate(h.Name, 23), h.State, h.CPU, h.Memory, h.VMs, h.Cluster)
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render(row))
+			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
 		} else {
-			m.lines = append(m.lines, stateStyle(h.State).Render(row))
+			m.lines = append(m.lines, "  "+stateStyle(h.State).Render(row))
 		}
 	}
 
