@@ -328,14 +328,6 @@ type vmActionMsg struct {
 	action string
 }
 
-func (m *vmListModel) getSelectedState() string {
-	filtered := m.getFiltered()
-	if m.cursor >= len(filtered) {
-		return ""
-	}
-	return filtered[m.cursor].State
-}
-
 func (m *vmListModel) sendActionIfValid(action string, validStates ...string) tea.Cmd {
 	return func() tea.Msg {
 		filtered := m.getFiltered()
