@@ -311,19 +311,6 @@ func (m *vmListModel) rebuildLines() {
 	}
 }
 
-func (m *vmListModel) sendAction(action string) tea.Cmd {
-	return func() tea.Msg {
-		filtered := m.getFiltered()
-		if m.cursor >= len(filtered) {
-			return nil
-		}
-		vm := filtered[m.cursor]
-		id := 0
-		_, _ = fmt.Sscanf(vm.ID, "%d", &id)
-		return vmActionMsg{id: id, action: action}
-	}
-}
-
 func (m vmListModel) sshToVM() tea.Cmd {
 	return func() tea.Msg {
 		filtered := m.getFiltered()

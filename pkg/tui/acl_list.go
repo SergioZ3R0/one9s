@@ -120,19 +120,40 @@ func (m *aclListModel) viewHeight() int {
 
 func (m *aclListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.acls)+1)
-	m.lines = append(m.lines, tableHeader.Render(
-		fmt.Sprintf("  %-4s  %-12s  %-42s  %-30s  %s",
-			"ID", "USER", "RESOURCE", "RIGHTS", "ZONE"),
-	))
+
+	// Dynamic column widths based on terminal width
+	avail := m.width - 6 // margins
+	if avail < 40 {
+		avail = 40
+	}
+
+	idW := min(6, avail/20)
+	userW := min(14, avail/8)
+	rightsW := min(25, avail/4)
+	zoneW := max(6, avail/10)
+	resW := avail - idW - userW - rightsW - zoneW - 10
+	if resW < 10 {
+		resW = 10
+	}
+
+	header := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %s",
+		idW, "ID", userW, "USER", resW, "RESOURCE", rightsW, "RIGHTS", "ZONE")
+	m.lines = append(m.lines, tableHeader.Render(header))
+
 	for i, a := range m.acls {
-		row := fmt.Sprintf("%-4s  %-12s  %-42s  %-30s  %s",
-			a.ID, a.User, a.Resource, a.Rights, a.Zone)
+		row := fmt.Sprintf("  %-*s  %-*s  %-*s  %-*s  %s",
+			idW, truncate(a.ID, idW),
+			userW, truncate(a.User, userW),
+			resW, truncate(a.Resource, resW),
+			rightsW, truncate(a.Rights, rightsW),
+			truncate(a.Zone, zoneW))
 		if i == m.cursor {
 			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
 		} else {
 			m.lines = append(m.lines, "  "+row)
 		}
 	}
+
 	viewH := m.viewHeight()
 	if m.cursor >= len(m.acls) {
 		m.cursor = max(0, len(m.acls)-1)

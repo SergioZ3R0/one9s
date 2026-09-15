@@ -3,32 +3,27 @@ package tui
 import "github.com/charmbracelet/bubbles/key"
 
 type keyMap struct {
-	Up             key.Binding
-	Down           key.Binding
-	PageUp         key.Binding
-	PageDown       key.Binding
-	Home           key.Binding
-	End            key.Binding
-	Quit           key.Binding
-	Tab            key.Binding
-	Enter          key.Binding
-	Search         key.Binding
-	Refresh        key.Binding
-	Reboot         key.Binding
-	Poweroff       key.Binding
-	Terminate      key.Binding
-	Stop           key.Binding
-	Migrate        key.Binding
-	Logs           key.Binding
-	SSH            key.Binding
-	Confirm        key.Binding
-	Cancel         key.Binding
-	Help           key.Binding
-	FilterAll      key.Binding
-	FilterActive   key.Binding
-	FilterStopped  key.Binding
-	FilterPoweroff key.Binding
-	FilterError    key.Binding
+	Up        key.Binding
+	Down      key.Binding
+	PageUp    key.Binding
+	PageDown  key.Binding
+	Home      key.Binding
+	End       key.Binding
+	Quit      key.Binding
+	Tab       key.Binding
+	Enter     key.Binding
+	Search    key.Binding
+	Refresh   key.Binding
+	Reboot    key.Binding
+	Poweroff  key.Binding
+	Terminate key.Binding
+	Stop      key.Binding
+	Migrate   key.Binding
+	Logs      key.Binding
+	SSH       key.Binding
+	Confirm   key.Binding
+	Cancel    key.Binding
+	Help      key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
@@ -40,7 +35,6 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Quit, k.Tab, k.Help},
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.Home, k.End},
 		{k.Reboot, k.Poweroff, k.Stop, k.Terminate, k.Migrate, k.Logs},
-		{k.FilterAll, k.FilterActive, k.FilterStopped, k.FilterPoweroff, k.FilterError},
 	}
 }
 
@@ -86,8 +80,8 @@ var keys = keyMap{
 		key.WithHelp("/", "search"),
 	),
 	Refresh: key.NewBinding(
-		key.WithKeys("R"),
-		key.WithHelp("R", "refresh"),
+		key.WithKeys("F5"),
+		key.WithHelp("F5", "refresh"),
 	),
 	Reboot: key.NewBinding(
 		key.WithKeys("r"),
@@ -118,8 +112,8 @@ var keys = keyMap{
 		key.WithHelp("c", "ssh"),
 	),
 	Confirm: key.NewBinding(
-		key.WithKeys("y", "enter"),
-		key.WithHelp("y/enter", "confirm"),
+		key.WithKeys("y"),
+		key.WithHelp("y", "confirm"),
 	),
 	Cancel: key.NewBinding(
 		key.WithKeys("n", "esc"),
@@ -128,25 +122,5 @@ var keys = keyMap{
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "help"),
-	),
-	FilterAll: key.NewBinding(
-		key.WithKeys("a"),
-		key.WithHelp("a", "all VMs"),
-	),
-	FilterActive: key.NewBinding(
-		key.WithKeys("u"),
-		key.WithHelp("u", "active only"),
-	),
-	FilterStopped: key.NewBinding(
-		key.WithKeys("o"),
-		key.WithHelp("o", "stopped only"),
-	),
-	FilterPoweroff: key.NewBinding(
-		key.WithKeys("p"),
-		key.WithHelp("p", "poweroff only"),
-	),
-	FilterError: key.NewBinding(
-		key.WithKeys("e"),
-		key.WithHelp("e", "error only"),
 	),
 }

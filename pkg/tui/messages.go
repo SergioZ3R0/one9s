@@ -37,12 +37,6 @@ type hostActionResultMsg struct {
 	err    error
 }
 
-type hostRenameMsg struct {
-	hostID int
-	name   string
-	err    error
-}
-
 // --- Action results ---
 
 type actionResultMsg struct {

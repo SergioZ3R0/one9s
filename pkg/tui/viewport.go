@@ -149,8 +149,8 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case "enter":
 					input := m.modal.input.Value()
 					m.modal.active = false
-					// If expecting is empty, accept any non-empty input (for rename)
 					if m.modal.expecting == "" {
+						// For rename: accept any non-empty input
 						if input == "" {
 							m.err = fmt.Errorf("input cannot be empty")
 							return m, nil
@@ -161,7 +161,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						return m, nil
 					}
-					// Otherwise check exact match (for delete confirmation)
+					// For delete: exact match required
 					if input == m.modal.expecting {
 						cmd := m.modal.cmd
 						if cmd != nil {
@@ -228,13 +228,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.fetchHosts())
 		return m, tea.Batch(cmds...)
 
-	case hostRenameMsg:
-		if msg.err != nil {
-			m.err = msg.err
-		}
-		cmds = append(cmds, m.fetchHosts())
-		return m, tea.Batch(cmds...)
-
 	case errorMsg:
 		m.err = msg.err
 		return m, nil
@@ -292,7 +285,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "o":
 				m.modal = newModal(
 					"Offline Host",
-					fmt.Sprintf("Set host '%s' offline? This host will stop running VMs.", hostName),
+					fmt.Sprintf("Set host '%s' offline?\nThis host will stop running VMs.", hostName),
 					func() tea.Msg {
 						return hostActionResultMsg{hostID: hostID, action: "offline"}
 					},
@@ -309,13 +302,14 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				)
 				return m, nil
 			case "n":
+				currentName := hostName
 				m.modal = newTextInputModal(
 					"Rename Host",
-					fmt.Sprintf("Enter new name for host '%s':", hostName),
-					"", // any non-empty input is accepted
+					fmt.Sprintf("Enter new name for '%s':", currentName),
+					"", // any non-empty input accepted
 					func() tea.Msg {
 						newName := m.modal.input.Value()
-						return hostRenameMsg{hostID: hostID, name: newName}
+						return hostActionResultMsg{hostID: hostID, action: "rename:" + newName}
 					},
 				)
 				return m, nil
@@ -386,6 +380,11 @@ func (m rootModel) executeVMAction(id int, action string) tea.Cmd {
 func (m rootModel) executeHostAction(id int, action string) tea.Cmd {
 	return func() tea.Msg {
 		var err error
+		if strings.HasPrefix(action, "rename:") {
+			newName := strings.TrimPrefix(action, "rename:")
+			err = m.client.HostRename(m.ctx, id, newName)
+			return hostActionResultMsg{hostID: id, action: "rename", err: err}
+		}
 		switch action {
 		case "delete":
 			err = m.client.HostDelete(m.ctx, id)
@@ -396,14 +395,12 @@ func (m rootModel) executeHostAction(id int, action string) tea.Cmd {
 	}
 }
 
-func (m rootModel) executeHostRename(id int, name string) tea.Cmd {
-	return func() tea.Msg {
-		err := m.client.HostRename(m.ctx, id, name)
-		return hostRenameMsg{hostID: id, name: name, err: err}
-	}
-}
-
 func (m rootModel) View() string {
+	// If modal is active, show it as the main content (centered)
+	if m.modal.active {
+		return m.renderModalView()
+	}
+
 	tabs := []string{
 		m.renderTab("1:VMs", m.currentView == viewVMs),
 		m.renderTab("2:Hosts", m.currentView == viewHosts),
@@ -443,50 +440,56 @@ func (m rootModel) View() string {
 
 	status := statusStyle.Render(fmt.Sprintf(" q:quit tab:switch F5:refresh /:filter ?:help  [last: %s]", m.lastKey))
 
-	view := lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
-
-	// Render modal overlay
-	if m.modal.active {
-		modalW := min(60, m.width-4)
-		modalH := 10
-		x := (m.width - modalW) / 2
-		y := (m.height - modalH) / 2
-		if x < 0 {
-			x = 0
-		}
-		if y < 0 {
-			y = 0
-		}
-		modalStr := modalBoxStyle.Width(modalW).Render(m.modal.View())
-		lines := strings.Split(view, "\n")
-		for i, line := range lines {
-			if i >= y && i < y+modalH {
-				modalLine := modalStr
-				modalLines := strings.Split(modalStr, "\n")
-				if i-y < len(modalLines) {
-					modalLine = modalLines[i-y]
-				}
-				prefix := ""
-				if x > 0 && x <= len(line) {
-					prefix = line[:x]
-				}
-				suffix := ""
-				if x+len(modalLine) < len(line) {
-					suffix = line[x+len(modalLine):]
-				}
-				lines[i] = prefix + modalLine + suffix
-			}
-		}
-		view = strings.Join(lines, "\n")
-	}
-
-	return view
+	return lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
 }
 
-var modalBoxStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.Color("203")).
-	Padding(1, 2)
+func (m rootModel) renderModalView() string {
+	modalW := min(60, m.width-4)
+	if modalW < 30 {
+		modalW = 30
+	}
+
+	// Render modal content
+	modalContent := m.modal.View()
+	modalLines := strings.Split(modalContent, "\n")
+
+	// Build the modal box
+	var box strings.Builder
+	box.WriteString(strings.Repeat("─", modalW))
+	box.WriteString("\n")
+	for _, line := range modalLines {
+		// Pad each line to modalW
+		padded := line
+		if len(padded) < modalW {
+			padded += strings.Repeat(" ", modalW-len(padded))
+		} else if len(padded) > modalW {
+			padded = padded[:modalW]
+		}
+		box.WriteString(padded)
+		box.WriteString("\n")
+	}
+	box.WriteString(strings.Repeat("─", modalW))
+
+	// Center vertically and horizontally
+	boxStr := box.String()
+	boxLines := strings.Split(boxStr, "\n")
+	totalH := len(boxLines)
+	yOffset := max(0, (m.height-totalH)/2)
+	xOffset := max(0, (m.width-modalW)/2)
+
+	// Build full screen with centered modal
+	var screen strings.Builder
+	for i := 0; i < yOffset; i++ {
+		screen.WriteString("\n")
+	}
+	for _, line := range boxLines {
+		screen.WriteString(strings.Repeat(" ", xOffset))
+		screen.WriteString(line)
+		screen.WriteString("\n")
+	}
+
+	return screen.String()
+}
 
 func (m rootModel) helpView() string {
 	var b strings.Builder
@@ -528,9 +531,9 @@ func (m rootModel) helpView() string {
 	b.WriteString("\n")
 	b.WriteString("  e         Enable host\n")
 	b.WriteString("  d         Disable host\n")
-	b.WriteString("  o         Offline host (confirm: type 'yes')\n")
-	b.WriteString("  x         Delete host (confirm: type 'yes')\n")
-	b.WriteString("  n         Rename host (confirm: type new name)\n")
+	b.WriteString("  o         Offline host (confirm)\n")
+	b.WriteString("  x         Delete host (type 'yes')\n")
+	b.WriteString("  n         Rename host (type new name)\n")
 	b.WriteString("\n")
 
 	b.WriteString(tableHeader.Render("General"))
