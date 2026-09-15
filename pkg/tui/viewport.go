@@ -275,7 +275,12 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.err = msg.err
 		}
-		cmds = append(cmds, m.fetchVMs())
+		switch msg.resource {
+		case "quota":
+			cmds = append(cmds, m.fetchQuotas())
+		default:
+			cmds = append(cmds, m.fetchVMs())
+		}
 		return m, tea.Batch(cmds...)
 
 	case hostActionResultMsg:
