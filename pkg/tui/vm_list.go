@@ -191,13 +191,23 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			m.scroll = 0
 			m.rebuildLines()
 		case "r":
-			return m, m.sendAction("reboot")
+			return m, m.sendActionIfValid("reboot", "ACTIVE")
 		case "s":
-			return m, m.sendAction("poweroff")
+			// Resume if stopped/powered off, poweroff if running
+			state := m.getSelectedState()
+			if strings.HasPrefix(state, "ACTIVE") {
+				return m, m.sendActionIfValid("poweroff", "ACTIVE")
+			}
+			return m, m.sendActionIfValid("resume", "POWEROFF", "SUSPENDED", "STOPPED")
 		case "x":
-			return m, m.sendAction("stop")
+			state := m.getSelectedState()
+			if strings.HasPrefix(state, "ACTIVE") {
+				return m, m.sendActionIfValid("suspend", "ACTIVE")
+			}
+			return m, m.sendActionIfValid("stop", "ACTIVE")
 		case "d":
-			return m, m.sendAction("terminate-hard")
+			// Terminate handled by root via modal
+			return m, nil
 		case "c":
 			return m, m.sshToVM()
 		}
@@ -332,6 +342,38 @@ func (m vmListModel) sshToVM() tea.Cmd {
 type vmActionMsg struct {
 	id     int
 	action string
+}
+
+func (m *vmListModel) getSelectedState() string {
+	filtered := m.getFiltered()
+	if m.cursor >= len(filtered) {
+		return ""
+	}
+	return filtered[m.cursor].State
+}
+
+func (m *vmListModel) sendActionIfValid(action string, validStates ...string) tea.Cmd {
+	return func() tea.Msg {
+		filtered := m.getFiltered()
+		if m.cursor >= len(filtered) {
+			return nil
+		}
+		vm := filtered[m.cursor]
+		// Check if current state is valid for this action
+		valid := false
+		for _, s := range validStates {
+			if strings.HasPrefix(vm.State, s) {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return errorMsg{err: fmt.Errorf("%s not available for state %s", action, vm.State)}
+		}
+		id := 0
+		_, _ = fmt.Sscanf(vm.ID, "%d", &id)
+		return vmActionMsg{id: id, action: action}
+	}
 }
 
 func stateFilterLabel(f string) string {

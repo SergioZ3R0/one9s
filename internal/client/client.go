@@ -78,6 +78,7 @@ type Client interface {
 var vmMainStates = map[int]string{
 	0: "INIT", 1: "PENDING", 2: "HOLD", 3: "ACTIVE",
 	4: "STOPPED", 5: "SUSPENDED", 6: "POWEROFF", 7: "UNDEPLOYED",
+	8: "HOLD", // some deployments use 8 for hold
 }
 
 // LCM state names (when STATE=3/ACTIVE)

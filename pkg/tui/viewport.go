@@ -211,31 +211,19 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// VM-only keys
-		if m.currentView == viewVMs {
-			switch k {
-			case "r":
-				return m, m.vmList.sendAction("reboot")
-			case "s":
-				return m, m.vmList.sendAction("poweroff")
-			case "x":
-				return m, m.vmList.sendAction("stop")
-			case "d":
-				vmID := m.getSelectedVMID()
-				m.modal = newModal(
-					"Terminate VM",
-					"This will HARD delete the VM. Are you sure?",
-					func() tea.Msg {
-						return vmActionMsg{id: vmID, action: "terminate-hard"}
-					},
-				)
-				return m, nil
-			case "c":
-				return m, m.vmList.sshToVM()
-			}
-		}
-
 		// Forward ALL keys to active sub-model
+		// (terminate modal handled here for VMs tab)
+		if m.currentView == viewVMs && k == "d" {
+			vmID := m.getSelectedVMID()
+			m.modal = newModal(
+				"Terminate VM",
+				"This will HARD delete the VM. Are you sure?",
+				func() tea.Msg {
+					return vmActionMsg{id: vmID, action: "terminate-hard"}
+				},
+			)
+			return m, nil
+		}
 		switch m.currentView {
 		case viewVMs:
 			m.vmList, _ = m.vmList.Update(msg)
@@ -343,10 +331,10 @@ func (m rootModel) helpView() string {
 
 	b.WriteString(tableHeader.Render("VM Actions (VMs tab only)"))
 	b.WriteString("\n")
-	b.WriteString("  r         Reboot\n")
-	b.WriteString("  s         Poweroff\n")
-	b.WriteString("  x         Stop\n")
-	b.WriteString("  d         Terminate (hard)\n")
+	b.WriteString("  r         Reboot (ACTIVE only)\n")
+	b.WriteString("  s         Poweroff (ACTIVE) / Resume (POWEROFF/SUSPENDED/STOPPED)\n")
+	b.WriteString("  x         Stop (ACTIVE) / Suspend (ACTIVE)\n")
+	b.WriteString("  d         Terminate (hard, any state)\n")
 	b.WriteString("\n")
 
 	b.WriteString(tableHeader.Render("VM State Filters (VMs tab only)"))
