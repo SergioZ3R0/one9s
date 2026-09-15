@@ -8,13 +8,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// modalType distinguishes between different modal types
 type modalType int
 
 const (
-	modalYN        modalType = iota // simple y/n
-	modalTextInput                  // type "yes" or custom text
-	modalForm                       // form with multiple fields
+	modalYN modalType = iota
+	modalTextInput
+	modalForm
 )
 
 type modalState struct {
@@ -22,13 +21,11 @@ type modalState struct {
 	modalType modalType
 	title     string
 	message   string
-	cmd       tea.Cmd // action to run on confirm
+	cmd       tea.Cmd
 
-	// For text input modals
 	input     textinput.Model
-	expecting string // expected input to confirm
+	expecting string
 
-	// For form modals
 	formFields []formField
 	formCmd    func(values map[string]string) tea.Cmd
 }
@@ -36,7 +33,7 @@ type modalState struct {
 type formField struct {
 	label string
 	input textinput.Model
-	key   string // identifier for the field
+	key   string
 }
 
 func newModal(title, msg string, cmd tea.Cmd) modalState {
@@ -66,7 +63,6 @@ func newTextInputModal(title, msg, expecting string, cmd tea.Cmd) modalState {
 }
 
 func newFormModal(title string, fields []formField, cmd func(values map[string]string) tea.Cmd) modalState {
-	// Focus the first field
 	for i := range fields {
 		fields[i].input.CharLimit = 12
 		if i == 0 {

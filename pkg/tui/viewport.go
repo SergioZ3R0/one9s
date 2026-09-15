@@ -190,7 +190,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if k, ok := msg.(tea.KeyMsg); ok {
 				switch k.String() {
 				case "tab":
-					// Move to next field
 					for i := range m.modal.formFields {
 						if m.modal.formFields[i].input.Focused() {
 							m.modal.formFields[i].input.Blur()
@@ -201,7 +200,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					return m, nil
 				case "shift+tab":
-					// Move to previous field
 					for i := range m.modal.formFields {
 						if m.modal.formFields[i].input.Focused() {
 							m.modal.formFields[i].input.Blur()
@@ -212,7 +210,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					return m, nil
 				case "y":
-					// Collect values and execute
 					values := make(map[string]string)
 					for _, f := range m.modal.formFields {
 						values[f.key] = f.input.Value()
@@ -226,11 +223,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.modal.active = false
 					return m, nil
 				default:
-					// Forward to focused field
 					for i := range m.modal.formFields {
 						if m.modal.formFields[i].input.Focused() {
-							var cmd tea.Cmd
-							m.modal.formFields[i].input, cmd = m.modal.formFields[i].input.Update(msg)
+							updated, cmd := m.modal.formFields[i].input.Update(msg)
+							m.modal.formFields[i].input = updated
 							cmds = append(cmds, cmd)
 							break
 						}
@@ -389,15 +385,26 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if q.UserID < 0 {
 				return m, nil
 			}
-			fields := []formField{
-				{label: "VMs", key: "vms", input: textinput.New()},
-				{label: "CPU", key: "cpu", input: textinput.New()},
-				{label: "Memory (MB)", key: "memory", input: textinput.New()},
-				{label: "Running VMs", key: "running", input: textinput.New()},
-				{label: "Images", key: "images", input: textinput.New()},
-				{label: "Size (MB)", key: "size", input: textinput.New()},
-				{label: "Leases", key: "leases", input: textinput.New()},
+			fields := make([]formField, 7)
+			for i := range fields {
+				ti := textinput.New()
+				ti.CharLimit = 12
+				fields[i] = formField{input: ti}
 			}
+			fields[0].label = "VMs"
+			fields[0].key = "vms"
+			fields[1].label = "CPU"
+			fields[1].key = "cpu"
+			fields[2].label = "Memory (MB)"
+			fields[2].key = "memory"
+			fields[3].label = "Running VMs"
+			fields[3].key = "running"
+			fields[4].label = "Images"
+			fields[4].key = "images"
+			fields[5].label = "Size (MB)"
+			fields[5].key = "size"
+			fields[6].label = "Leases"
+			fields[6].key = "leases"
 			// Pre-populate with current limits (0 = unlimited)
 			fields[0].input.SetValue(fmt.Sprintf("%d", q.VMsLimit))
 			fields[1].input.SetValue(fmt.Sprintf("%d", q.CPULimit))
