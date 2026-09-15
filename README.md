@@ -11,7 +11,7 @@
 </p>
 
 `one9s` is a **TUI** (terminal user interface) for managing and monitoring
-**OpenNebula** clusters directly from your terminal — inspired by
+**OpenNebula** clusters directly from your terminal, inspired by
 [k9s](https://github.com/derailed/k9s) and
 [lazygit](https://github.com/jesseduffield/lazygit).
 
@@ -26,37 +26,37 @@ OpenNebula API into a live, interactive dashboard. It lets you:
 
 - Monitor **VMs**, **Hosts**, **Datastores**, **ACLs** and **Quotas** at a glance.
 - Filter VMs by state (active, stopped, poweroff, error) with a single keypress.
-- Perform **lifecycle actions** — reboot, stop, resume, suspend, terminate —
+- Perform **lifecycle actions**, reboot, stop, resume, suspend, terminate,
   directly from the TUI.
-- Manage **Hosts** — enable, disable, offline, delete, rename — with
+- Manage **Hosts**, enable, disable, offline, delete, rename, with
   confirmation modals for destructive operations.
 - Decode **ACL rules** from hex to human-readable format (user, resource,
   rights, zone).
-- View **User Quotas** — VMs, CPU, Memory, Running VMs, Images, Leases.
+- View **User Quotas**, VMs, CPU, Memory, Running VMs, Images, Leases.
 
 It is written in **Go**, styled with
 [Lip Gloss](https://github.com/charmbracelet/lipgloss), and speaks directly to
-OpenNebula using the official GOCA library — no SSH, no Sunstone, no Ruby.
+OpenNebula using the official GOCA library, no SSH, no Sunstone, no Ruby.
 
 ## Philosophy
 
 **one9s is a pure API client.** It talks to OpenNebula's XML-RPC API and
-nothing else — no SSH, no local CLI commands, no filesystem access. Run it from
+nothing else, no SSH, no local CLI commands, no filesystem access. Run it from
 your laptop against any cluster with zero dependencies on the cluster's tooling.
 
 This makes one9s:
 
-- **Portable** — a single binary, no OpenNebula CLI installation required.
-- **Secure** — no shell access needed; only the XML-RPC endpoint must be reachable.
-- **Fast** — zero auto-polling; data is fetched on startup and on explicit refresh (F5).
-- **Real-time** — instant navigation with direct line rendering (no viewport overhead).
+- **Portable**, a single binary, no OpenNebula CLI installation required.
+- **Secure**, no shell access needed; only the XML-RPC endpoint must be reachable.
+- **Fast**, zero auto-polling; data is fetched on startup and on explicit refresh (F5).
+- **Real-time**, instant navigation with direct line rendering (no viewport overhead).
 
 ## Status
 
 `one9s` is under active development. Current features:
 
 - [x] XML-RPC client via GOCA with `ONE_AUTH` / `ONE_XMLRPC` environment variables.
-- [x] VM pool view with state, CPU, Memory, IP, Host — state-aware color coding.
+- [x] VM pool view with state, CPU, Memory, IP, Host, state-aware color coding.
 - [x] VM state filters: All, Active, Stopped, Poweroff, Error.
 - [x] VM lifecycle actions: reboot, stop, resume, suspend, terminate (with confirmation).
 - [x] Host pool view with state, CPU%, Memory%, VMs running.
@@ -75,12 +75,12 @@ This makes one9s:
 
 **Tabs** (navigate with `tab`, `?` for help):
 
-- **VMs** — all VMs with state, user, CPU, memory, IP, host. Filter by state or text search.
-- **Hosts** — cluster hosts with state, CPU%, memory%, running VMs. Enable/disable/rename/delete.
-- **Datastores** — storage pools with type, capacity, usage.
-- **ACLs** — decoded access control rules (user, resource, rights, zone).
-- **Quotas** — user quotas (VMs, CPU, Memory, Running, Images, Leases).
-- **Help** — context-sensitive key bindings for the current tab.
+- **VMs**, all VMs with state, user, CPU, memory, IP, host. Filter by state or text search.
+- **Hosts**, cluster hosts with state, CPU%, memory%, running VMs. Enable/disable/rename/delete.
+- **Datastores**, storage pools with type, capacity, usage.
+- **ACLs**, decoded access control rules (user, resource, rights, zone).
+- **Quotas**, user quotas (VMs, CPU, Memory, Running, Images, Leases).
+- **Help**, context-sensitive key bindings for the current tab.
 
 **Key bindings**
 
