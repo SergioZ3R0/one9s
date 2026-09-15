@@ -38,6 +38,7 @@ type rootModel struct {
 	currentView viewName
 	modal       modalState
 	fetching    bool
+	lastKey     string
 	width       int
 	height      int
 	err         error
@@ -184,6 +185,8 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		k := msg.String()
+		// Store last keypress for diagnostics
+		m.lastKey = k
 
 		// Global keys
 		switch k {
@@ -314,7 +317,7 @@ func (m rootModel) View() string {
 		content = m.helpView()
 	}
 
-	status := statusStyle.Render(" q:quit  tab:switch  R:refresh  /:filter  ?:help")
+	status := statusStyle.Render(fmt.Sprintf(" q:quit tab:switch R:refresh /:filter ?:help  [last: %s]", m.lastKey))
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
 }
