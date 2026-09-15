@@ -155,19 +155,21 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							m.err = fmt.Errorf("input cannot be empty")
 							return m, nil
 						}
-						cmd := m.modal.cmd
-						if cmd != nil {
-							return m, cmd
+						// Capture input value NOW and create cmd inline
+						hostID := m.getSelectedHostID()
+						newName := input
+						return m, func() tea.Msg {
+							err := m.client.HostRename(m.ctx, hostID, newName)
+							return hostActionResultMsg{hostID: hostID, action: "rename", err: err}
 						}
-						return m, nil
 					}
 					// For delete: exact match required
 					if input == m.modal.expecting {
-						cmd := m.modal.cmd
-						if cmd != nil {
-							return m, cmd
+						hostID := m.getSelectedHostID()
+						return m, func() tea.Msg {
+							err := m.client.HostDelete(m.ctx, hostID)
+							return hostActionResultMsg{hostID: hostID, action: "delete", err: err}
 						}
-						return m, nil
 					}
 					m.err = fmt.Errorf("expected '%s', got '%s'", m.modal.expecting, input)
 					return m, nil
