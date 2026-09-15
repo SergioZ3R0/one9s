@@ -1,0 +1,63 @@
+name: Bug Report
+description: File a bug report so we can improve one9s.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report for `one9s`!
+        Please fill out all the required fields below so we can replicate the issue.
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: What did you run? (e.g., a specific tab, an action, a filter)
+      placeholder: |
+        1. Ran command: ...
+        2. Connected to OpenNebula at: ...
+        3. Tried to: ...
+        4. Error occurred...
+    validations:
+      required: true
+  - type: input
+    id: opennebula_version
+    attributes:
+      label: OpenNebula Version
+      description: Check with `oned --version` or in Sunstone.
+      placeholder: e.g., 7.4.1
+    validations:
+      required: true
+  - type: input
+    id: go_version
+    attributes:
+      label: Go Version
+      description: Check with `go version`.
+      placeholder: e.g., 1.24
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Execution Environment
+      options:
+        - Direct connection to OpenNebula XML-RPC
+        - Docker
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs / Output
+      description: Paste the terminal output or error messages.
+      render: shell
+    validations:
+      required: false
