@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -59,41 +58,61 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 				Leases:     q.Leases,
 			})
 		}
+		m.cursor = 0
+		m.scroll = 0
 		m.rebuildLines()
 		return m, nil
 
 	case tea.KeyMsg:
 		viewH := m.viewHeight()
-		switch {
-		case key.Matches(msg, keys.Down):
-			if m.cursor < len(m.quotas)-1 {
+		maxC := len(m.quotas) - 1
+		if maxC < 0 {
+			maxC = 0
+		}
+		switch msg.String() {
+		case "down", "j":
+			if m.cursor < maxC {
 				m.cursor++
-				if m.cursor >= m.scroll+viewH {
-					m.scroll = m.cursor - viewH + 1
-				}
 			}
-		case key.Matches(msg, keys.Up):
+			if m.cursor >= m.scroll+viewH {
+				m.scroll = m.cursor - viewH + 1
+			}
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, nil
+		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
-				if m.cursor < m.scroll {
-					m.scroll = m.scroll - 1
-				}
 			}
-		case key.Matches(msg, keys.PageDown):
-			m.cursor = min(m.cursor+viewH, max(0, len(m.quotas)-1))
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, nil
+		case "pgdown", "f":
+			m.cursor = min(m.cursor+viewH, maxC)
 			m.scroll = min(m.scroll+viewH, max(0, len(m.quotas)-viewH))
-		case key.Matches(msg, keys.PageUp):
+			m.rebuildLines()
+			return m, nil
+		case "pgup", "b":
 			m.cursor = max(m.cursor-viewH, 0)
 			m.scroll = max(m.scroll-viewH, 0)
-		case key.Matches(msg, keys.Home):
+			m.rebuildLines()
+			return m, nil
+		case "g":
 			m.cursor = 0
 			m.scroll = 0
-		case key.Matches(msg, keys.End):
-			m.cursor = max(0, len(m.quotas)-1)
+			m.rebuildLines()
+			return m, nil
+		case "G":
+			m.cursor = maxC
 			m.scroll = max(0, m.cursor-viewH+1)
+			m.rebuildLines()
+			return m, nil
 		}
 	}
-
 	return m, nil
 }
 
@@ -107,22 +126,20 @@ func (m *quotaListModel) viewHeight() int {
 
 func (m *quotaListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.quotas)+1)
-
-	header := fmt.Sprintf("%-20s %-12s %-16s %-16s %-14s %-12s %-14s %-12s",
-		"ENTITY", "VMs", "CPU", "MEMORY", "RUNNING", "IMAGES", "SIZE", "LEASES")
-	m.lines = append(m.lines, tableHeader.Render(header))
-
+	m.lines = append(m.lines, tableHeader.Render(
+		fmt.Sprintf("  %-20s %-12s %-16s %-16s %-14s %-12s %-14s %-12s",
+			"ENTITY", "VMs", "CPU", "MEMORY", "RUNNING", "IMAGES", "SIZE", "LEASES"),
+	))
 	for i, q := range m.quotas {
 		row := fmt.Sprintf("%-20s %-12s %-16s %-16s %-14s %-12s %-14s %-12s",
 			truncate(q.Entity, 19), q.VMs, q.CPU, q.Memory,
 			q.RunningVMs, q.Images, q.Size, q.Leases)
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render(row))
+			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
 		} else {
-			m.lines = append(m.lines, row)
+			m.lines = append(m.lines, "  "+row)
 		}
 	}
-
 	viewH := m.viewHeight()
 	if m.cursor >= len(m.quotas) {
 		m.cursor = max(0, len(m.quotas)-1)
@@ -142,7 +159,6 @@ func (m quotaListModel) View() string {
 	viewH := m.viewHeight()
 	end := min(m.scroll+viewH, len(m.lines))
 	visible := m.lines[m.scroll:end]
-
-	status := statusStyle.Render(fmt.Sprintf(" %d User Quotas", len(m.quotas)))
+	status := statusStyle.Render(fmt.Sprintf(" %d User Quotas  cursor:%d/%d", len(m.quotas), m.cursor, max(0, len(m.quotas)-1)))
 	return lipgloss.JoinVertical(lipgloss.Left, strings.Join(visible, "\n"), status)
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -53,41 +52,61 @@ func (m aclListModel) Update(msg tea.Msg) (aclListModel, tea.Cmd) {
 				Zone:     a.Zone,
 			})
 		}
+		m.cursor = 0
+		m.scroll = 0
 		m.rebuildLines()
 		return m, nil
 
 	case tea.KeyMsg:
 		viewH := m.viewHeight()
-		switch {
-		case key.Matches(msg, keys.Down):
-			if m.cursor < len(m.acls)-1 {
+		maxC := len(m.acls) - 1
+		if maxC < 0 {
+			maxC = 0
+		}
+		switch msg.String() {
+		case "down", "j":
+			if m.cursor < maxC {
 				m.cursor++
-				if m.cursor >= m.scroll+viewH {
-					m.scroll = m.cursor - viewH + 1
-				}
 			}
-		case key.Matches(msg, keys.Up):
+			if m.cursor >= m.scroll+viewH {
+				m.scroll = m.cursor - viewH + 1
+			}
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, nil
+		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
-				if m.cursor < m.scroll {
-					m.scroll = m.scroll - 1
-				}
 			}
-		case key.Matches(msg, keys.PageDown):
-			m.cursor = min(m.cursor+viewH, max(0, len(m.acls)-1))
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, nil
+		case "pgdown", "f":
+			m.cursor = min(m.cursor+viewH, maxC)
 			m.scroll = min(m.scroll+viewH, max(0, len(m.acls)-viewH))
-		case key.Matches(msg, keys.PageUp):
+			m.rebuildLines()
+			return m, nil
+		case "pgup", "b":
 			m.cursor = max(m.cursor-viewH, 0)
 			m.scroll = max(m.scroll-viewH, 0)
-		case key.Matches(msg, keys.Home):
+			m.rebuildLines()
+			return m, nil
+		case "g":
 			m.cursor = 0
 			m.scroll = 0
-		case key.Matches(msg, keys.End):
-			m.cursor = max(0, len(m.acls)-1)
+			m.rebuildLines()
+			return m, nil
+		case "G":
+			m.cursor = maxC
 			m.scroll = max(0, m.cursor-viewH+1)
+			m.rebuildLines()
+			return m, nil
 		}
 	}
-
 	return m, nil
 }
 
@@ -101,21 +120,19 @@ func (m *aclListModel) viewHeight() int {
 
 func (m *aclListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.acls)+1)
-
-	header := fmt.Sprintf("%-4s  %-12s  %-42s  %-30s  %s",
-		"ID", "USER", "RESOURCE", "RIGHTS", "ZONE")
-	m.lines = append(m.lines, tableHeader.Render(header))
-
+	m.lines = append(m.lines, tableHeader.Render(
+		fmt.Sprintf("  %-4s  %-12s  %-42s  %-30s  %s",
+			"ID", "USER", "RESOURCE", "RIGHTS", "ZONE"),
+	))
 	for i, a := range m.acls {
 		row := fmt.Sprintf("%-4s  %-12s  %-42s  %-30s  %s",
 			a.ID, a.User, a.Resource, a.Rights, a.Zone)
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render(row))
+			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
 		} else {
-			m.lines = append(m.lines, row)
+			m.lines = append(m.lines, "  "+row)
 		}
 	}
-
 	viewH := m.viewHeight()
 	if m.cursor >= len(m.acls) {
 		m.cursor = max(0, len(m.acls)-1)
@@ -135,7 +152,6 @@ func (m aclListModel) View() string {
 	viewH := m.viewHeight()
 	end := min(m.scroll+viewH, len(m.lines))
 	visible := m.lines[m.scroll:end]
-
-	status := statusStyle.Render(fmt.Sprintf(" %d ACL Rules", len(m.acls)))
+	status := statusStyle.Render(fmt.Sprintf(" %d ACL Rules  cursor:%d/%d", len(m.acls), m.cursor, max(0, len(m.acls)-1)))
 	return lipgloss.JoinVertical(lipgloss.Left, strings.Join(visible, "\n"), status)
 }

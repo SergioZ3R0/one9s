@@ -56,41 +56,61 @@ func (m hostListModel) Update(msg tea.Msg) (hostListModel, tea.Cmd) {
 				Cluster: h.Cluster,
 			})
 		}
+		m.cursor = 0
+		m.scroll = 0
 		m.rebuildLines()
 		return m, nil
 
 	case tea.KeyMsg:
 		viewH := m.viewHeight()
+		maxC := len(m.hosts) - 1
+		if maxC < 0 {
+			maxC = 0
+		}
 		switch msg.String() {
 		case "down", "j":
-			if m.cursor < len(m.hosts)-1 {
+			if m.cursor < maxC {
 				m.cursor++
-				if m.cursor >= m.scroll+viewH {
-					m.scroll = m.cursor - viewH + 1
-				}
 			}
+			if m.cursor >= m.scroll+viewH {
+				m.scroll = m.cursor - viewH + 1
+			}
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, nil
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
-				if m.cursor < m.scroll {
-					m.scroll = m.scroll - 1
-				}
 			}
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, nil
 		case "pgdown", "f":
-			m.cursor = min(m.cursor+viewH, max(0, len(m.hosts)-1))
+			m.cursor = min(m.cursor+viewH, maxC)
 			m.scroll = min(m.scroll+viewH, max(0, len(m.hosts)-viewH))
+			m.rebuildLines()
+			return m, nil
 		case "pgup", "b":
 			m.cursor = max(m.cursor-viewH, 0)
 			m.scroll = max(m.scroll-viewH, 0)
+			m.rebuildLines()
+			return m, nil
 		case "g":
 			m.cursor = 0
 			m.scroll = 0
+			m.rebuildLines()
+			return m, nil
 		case "G":
-			m.cursor = max(0, len(m.hosts)-1)
+			m.cursor = maxC
 			m.scroll = max(0, m.cursor-viewH+1)
+			m.rebuildLines()
+			return m, nil
 		}
 	}
-
 	return m, nil
 }
 
@@ -104,11 +124,10 @@ func (m *hostListModel) viewHeight() int {
 
 func (m *hostListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.hosts)+1)
-
-	header := fmt.Sprintf("%-6s %-24s %-12s %-8s %-8s %-10s %-8s",
-		"ID", "NAME", "STATE", "CPU", "MEM", "VMs", "CLUSTER")
-	m.lines = append(m.lines, tableHeader.Render(header))
-
+	m.lines = append(m.lines, tableHeader.Render(
+		fmt.Sprintf("  %-6s %-24s %-12s %-8s %-8s %-10s %-8s",
+			"ID", "NAME", "STATE", "CPU", "MEM", "VMs", "CLUSTER"),
+	))
 	for i, h := range m.hosts {
 		row := fmt.Sprintf("%-6s %-24s %-12s %-8s %-8s %-10s %-8s",
 			h.ID, truncate(h.Name, 23), h.State, h.CPU, h.Memory, h.VMs, h.Cluster)
@@ -118,7 +137,6 @@ func (m *hostListModel) rebuildLines() {
 			m.lines = append(m.lines, "  "+stateStyle(h.State).Render(row))
 		}
 	}
-
 	viewH := m.viewHeight()
 	if m.cursor >= len(m.hosts) {
 		m.cursor = max(0, len(m.hosts)-1)
@@ -138,7 +156,6 @@ func (m hostListModel) View() string {
 	viewH := m.viewHeight()
 	end := min(m.scroll+viewH, len(m.lines))
 	visible := m.lines[m.scroll:end]
-
-	status := statusStyle.Render(fmt.Sprintf(" %d Hosts", len(m.hosts)))
+	status := statusStyle.Render(fmt.Sprintf(" %d Hosts  cursor:%d/%d", len(m.hosts), m.cursor, max(0, len(m.hosts)-1)))
 	return lipgloss.JoinVertical(lipgloss.Left, strings.Join(visible, "\n"), status)
 }

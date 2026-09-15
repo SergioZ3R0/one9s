@@ -203,7 +203,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentView = viewHelp
 			}
 			return m, nil
-		case "R":
+		case "F5":
 			if !m.fetching {
 				m.fetching = true
 				return m, m.refreshView()
@@ -317,7 +317,7 @@ func (m rootModel) View() string {
 		content = m.helpView()
 	}
 
-	status := statusStyle.Render(fmt.Sprintf(" q:quit tab:switch R:refresh /:filter ?:help  [last: %s]", m.lastKey))
+	status := statusStyle.Render(fmt.Sprintf(" q:quit tab:switch F5:refresh /:filter ?:help  [last: %s]", m.lastKey))
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
 }
@@ -360,7 +360,7 @@ func (m rootModel) helpView() string {
 
 	b.WriteString(tableHeader.Render("General"))
 	b.WriteString("\n")
-	b.WriteString("  R         Refresh current view\n")
+	b.WriteString("  F5        Refresh current view\n")
 	b.WriteString("  ?         Toggle this help\n")
 	b.WriteString("  q         Quit\n")
 
