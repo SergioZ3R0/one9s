@@ -3,8 +3,10 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -183,6 +185,59 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, tea.Batch(cmds...)
+
+		case modalForm:
+			if k, ok := msg.(tea.KeyMsg); ok {
+				switch k.String() {
+				case "tab":
+					// Move to next field
+					for i := range m.modal.formFields {
+						if m.modal.formFields[i].input.Focused() {
+							m.modal.formFields[i].input.Blur()
+							next := (i + 1) % len(m.modal.formFields)
+							m.modal.formFields[next].input.Focus()
+							break
+						}
+					}
+					return m, nil
+				case "shift+tab":
+					// Move to previous field
+					for i := range m.modal.formFields {
+						if m.modal.formFields[i].input.Focused() {
+							m.modal.formFields[i].input.Blur()
+							prev := (i - 1 + len(m.modal.formFields)) % len(m.modal.formFields)
+							m.modal.formFields[prev].input.Focus()
+							break
+						}
+					}
+					return m, nil
+				case "y":
+					// Collect values and execute
+					values := make(map[string]string)
+					for _, f := range m.modal.formFields {
+						values[f.key] = f.input.Value()
+					}
+					m.modal.active = false
+					if m.modal.formCmd != nil {
+						return m, m.modal.formCmd(values)
+					}
+					return m, nil
+				case "n", "esc":
+					m.modal.active = false
+					return m, nil
+				default:
+					// Forward to focused field
+					for i := range m.modal.formFields {
+						if m.modal.formFields[i].input.Focused() {
+							var cmd tea.Cmd
+							m.modal.formFields[i].input, cmd = m.modal.formFields[i].input.Update(msg)
+							cmds = append(cmds, cmd)
+							break
+						}
+					}
+				}
+			}
+			return m, tea.Batch(cmds...)
 		}
 	}
 
@@ -323,6 +378,45 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// Quota tab actions
+		if m.currentView == viewQuotas && k == "e" {
+			q := m.getSelectedQuota()
+			if q.UserID < 0 {
+				return m, nil
+			}
+			fields := []formField{
+				{label: "VMs", key: "vms", input: textinput.New()},
+				{label: "CPU", key: "cpu", input: textinput.New()},
+				{label: "Memory (MB)", key: "memory", input: textinput.New()},
+				{label: "Running VMs", key: "running", input: textinput.New()},
+				{label: "Images", key: "images", input: textinput.New()},
+				{label: "Size (MB)", key: "size", input: textinput.New()},
+				{label: "Leases", key: "leases", input: textinput.New()},
+			}
+			// Pre-populate with current limits (0 = unlimited)
+			fields[0].input.SetValue(fmt.Sprintf("%d", q.VMsLimit))
+			fields[1].input.SetValue(fmt.Sprintf("%d", q.CPULimit))
+			fields[2].input.SetValue(fmt.Sprintf("%d", q.MemoryLimit))
+			fields[3].input.SetValue(fmt.Sprintf("%d", q.RunningVMsLimit))
+			fields[4].input.SetValue(fmt.Sprintf("%d", q.ImagesLimit))
+			fields[5].input.SetValue(fmt.Sprintf("%d", q.SizeLimit))
+			fields[6].input.SetValue(fmt.Sprintf("%d", q.LeasesLimit))
+
+			userID := q.UserID
+			m.modal = newFormModal(
+				fmt.Sprintf("Edit Quota: %s", q.Entity),
+				fields,
+				func(values map[string]string) tea.Cmd {
+					tpl := buildQuotaTemplate(values)
+					return func() tea.Msg {
+						err := m.client.QuotaUpdate(m.ctx, userID, tpl)
+						return actionResultMsg{resource: "quota", id: userID, action: "update", err: err}
+					}
+				},
+			)
+			return m, nil
+		}
+
 		// Forward ALL keys to active sub-model
 		switch m.currentView {
 		case viewVMs:
@@ -375,6 +469,79 @@ func (m *rootModel) getSelectedHostName() string {
 		return ""
 	}
 	return m.hostList.hosts[m.hostList.cursor].Name
+}
+
+func (m *rootModel) getSelectedQuota() client.QuotaInfo {
+	if m.qList.cursor >= len(m.qList.quotas) {
+		return client.QuotaInfo{UserID: -1}
+	}
+	q := m.qList.quotas[m.qList.cursor]
+	return client.QuotaInfo{
+		UserID:          q.UserID,
+		Entity:          q.Entity,
+		VMsLimit:        q.VMsLimit,
+		CPULimit:        q.CPULimit,
+		MemoryLimit:     q.MemoryLimit,
+		RunningVMsLimit: q.RunningVMsLimit,
+		ImagesLimit:     q.ImagesLimit,
+		SizeLimit:       q.SizeLimit,
+		LeasesLimit:     q.LeasesLimit,
+	}
+}
+
+func buildQuotaTemplate(values map[string]string) string {
+	var vmParts []string
+
+	if v := parseQuotaVal(values["vms"]); v > 0 {
+		vmParts = append(vmParts, fmt.Sprintf("VMS=%d", v))
+	}
+	if v := parseQuotaVal(values["cpu"]); v > 0 {
+		vmParts = append(vmParts, fmt.Sprintf("CPU=%d", v))
+	}
+	if v := parseQuotaVal(values["memory"]); v > 0 {
+		vmParts = append(vmParts, fmt.Sprintf("MEMORY=%d", v))
+	}
+	if v := parseQuotaVal(values["running"]); v > 0 {
+		vmParts = append(vmParts, fmt.Sprintf("RUNNING_VMS=%d", v))
+	}
+
+	var dsParts []string
+	if v := parseQuotaVal(values["images"]); v > 0 {
+		dsParts = append(dsParts, fmt.Sprintf("IMAGES=%d", v))
+	}
+	if v := parseQuotaVal(values["size"]); v > 0 {
+		dsParts = append(dsParts, fmt.Sprintf("SIZE=%d", v))
+	}
+
+	var netParts []string
+	if v := parseQuotaVal(values["leases"]); v > 0 {
+		netParts = append(netParts, fmt.Sprintf("LEASES=%d", v))
+	}
+
+	var parts []string
+	if len(vmParts) > 0 {
+		parts = append(parts, fmt.Sprintf("VM_QUOTA=[ %s ]", strings.Join(vmParts, ", ")))
+	}
+	if len(dsParts) > 0 {
+		parts = append(parts, fmt.Sprintf("DATASTORE_QUOTA=[ %s ]", strings.Join(dsParts, ", ")))
+	}
+	if len(netParts) > 0 {
+		parts = append(parts, fmt.Sprintf("NETWORK_QUOTA=[ %s ]", strings.Join(netParts, ", ")))
+	}
+
+	return strings.Join(parts, "\n")
+}
+
+func parseQuotaVal(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "0" {
+		return 0
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return v
 }
 
 func (m rootModel) executeVMAction(id int, action string) tea.Cmd {
@@ -538,6 +705,11 @@ func (m rootModel) helpView() string {
 	b.WriteString("  o         Offline host (confirm)\n")
 	b.WriteString("  x         Delete host (type 'yes')\n")
 	b.WriteString("  n         Rename host (type new name)\n")
+	b.WriteString("\n")
+
+	b.WriteString(tableHeader.Render("Quota Actions (Quotas tab only)"))
+	b.WriteString("\n")
+	b.WriteString("  e         Edit user quota\n")
 	b.WriteString("\n")
 
 	b.WriteString(tableHeader.Render("General"))

@@ -18,14 +18,22 @@ type quotaListModel struct {
 }
 
 type quotaRow struct {
-	Entity     string
-	VMs        string
-	CPU        string
-	Memory     string
-	RunningVMs string
-	Images     string
-	Size       string
-	Leases     string
+	UserID          int
+	Entity          string
+	VMs             string
+	CPU             string
+	Memory          string
+	RunningVMs      string
+	Images          string
+	Size            string
+	Leases          string
+	VMsLimit        int
+	CPULimit        int
+	MemoryLimit     int
+	RunningVMsLimit int
+	ImagesLimit     int
+	SizeLimit       int
+	LeasesLimit     int
 }
 
 func newQuotaListModel() quotaListModel {
@@ -48,14 +56,22 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 		m.quotas = make([]quotaRow, 0, len(msg.quotas))
 		for _, q := range msg.quotas {
 			m.quotas = append(m.quotas, quotaRow{
-				Entity:     q.Entity,
-				VMs:        q.VMs,
-				CPU:        q.CPU,
-				Memory:     q.Memory,
-				RunningVMs: q.RunningVMs,
-				Images:     q.Images,
-				Size:       q.Size,
-				Leases:     q.Leases,
+				UserID:          q.UserID,
+				Entity:          q.Entity,
+				VMs:             q.VMs,
+				CPU:             q.CPU,
+				Memory:          q.Memory,
+				RunningVMs:      q.RunningVMs,
+				Images:          q.Images,
+				Size:            q.Size,
+				Leases:          q.Leases,
+				VMsLimit:        q.VMsLimit,
+				CPULimit:        q.CPULimit,
+				MemoryLimit:     q.MemoryLimit,
+				RunningVMsLimit: q.RunningVMsLimit,
+				ImagesLimit:     q.ImagesLimit,
+				SizeLimit:       q.SizeLimit,
+				LeasesLimit:     q.LeasesLimit,
 			})
 		}
 		m.cursor = 0

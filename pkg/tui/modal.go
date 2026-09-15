@@ -8,12 +8,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// modalType distinguishes between y/n confirm and text input confirm
+// modalType distinguishes between different modal types
 type modalType int
 
 const (
 	modalYN        modalType = iota // simple y/n
 	modalTextInput                  // type "yes" or custom text
+	modalForm                       // form with multiple fields
 )
 
 type modalState struct {
@@ -26,6 +27,16 @@ type modalState struct {
 	// For text input modals
 	input     textinput.Model
 	expecting string // expected input to confirm
+
+	// For form modals
+	formFields []formField
+	formCmd    func(values map[string]string) tea.Cmd
+}
+
+type formField struct {
+	label string
+	input textinput.Model
+	key   string // identifier for the field
 }
 
 func newModal(title, msg string, cmd tea.Cmd) modalState {
@@ -54,15 +65,32 @@ func newTextInputModal(title, msg, expecting string, cmd tea.Cmd) modalState {
 	}
 }
 
+func newFormModal(title string, fields []formField, cmd func(values map[string]string) tea.Cmd) modalState {
+	// Focus the first field
+	for i := range fields {
+		fields[i].input.CharLimit = 12
+		if i == 0 {
+			fields[i].input.Focus()
+		}
+	}
+	return modalState{
+		active:     true,
+		modalType:  modalForm,
+		title:      title,
+		formFields: fields,
+		formCmd:    cmd,
+	}
+}
+
 func (m modalState) View() string {
 	if !m.active {
 		return ""
 	}
-	body := fmt.Sprintf(
-		"%s\n\n%s\n",
-		titleStyle.Render(m.title),
-		m.message,
-	)
+	body := fmt.Sprintf("%s\n", titleStyle.Render(m.title))
+
+	if m.message != "" {
+		body += fmt.Sprintf("%s\n", m.message)
+	}
 
 	switch m.modalType {
 	case modalYN:
@@ -77,6 +105,17 @@ func (m modalState) View() string {
 		body += fmt.Sprintf("\n%s\n\n%s",
 			filterStyle.Render("Type '"+m.expecting+"' to confirm:"),
 			m.input.View(),
+		)
+	case modalForm:
+		for _, f := range m.formFields {
+			body += fmt.Sprintf("\n  %s %s", filterStyle.Render(f.label+":"), f.input.View())
+		}
+		body += fmt.Sprintf("\n\n%s",
+			lipgloss.JoinHorizontal(lipgloss.Top,
+				stateRunning.Render("[y] Apply"),
+				"  ",
+				statePoweroff.Render("[n] Cancel"),
+			),
 		)
 	}
 

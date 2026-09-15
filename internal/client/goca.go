@@ -155,22 +155,32 @@ func (g *GOCAClient) ListQuotas(ctx context.Context) ([]QuotaInfo, error) {
 				return
 			}
 
-			qi := QuotaInfo{Entity: fmt.Sprintf("user:%s", uname)}
+			qi := QuotaInfo{
+				UserID: uid,
+				Entity: fmt.Sprintf("user:%s", uname),
+			}
 			if len(info.VM) > 0 {
 				vmq := info.VM[0]
 				qi.VMs = fmt.Sprintf("%d/%d", vmq.VMsUsed, vmq.VMs)
 				qi.CPU = fmt.Sprintf("%.0f/%d", vmq.CPUUsed, int(vmq.CPU))
 				qi.Memory = fmt.Sprintf("%d/%d MB", vmq.MemoryUsed, vmq.Memory)
 				qi.RunningVMs = fmt.Sprintf("%d/%d", vmq.RunningVMsUsed, vmq.RunningVMs)
+				qi.VMsLimit = vmq.VMs
+				qi.CPULimit = int(vmq.CPU)
+				qi.MemoryLimit = vmq.Memory
+				qi.RunningVMsLimit = vmq.RunningVMs
 			}
 			if len(info.Datastore) > 0 {
 				dsq := info.Datastore[0]
 				qi.Images = fmt.Sprintf("%d/%d", dsq.ImagesUsed, dsq.Images)
 				qi.Size = fmt.Sprintf("%d/%d MB", dsq.SizeUsed, dsq.Size)
+				qi.ImagesLimit = dsq.Images
+				qi.SizeLimit = dsq.Size
 			}
 			if len(info.Network) > 0 {
 				nq := info.Network[0]
 				qi.Leases = fmt.Sprintf("%d/%d", nq.LeasesUsed, nq.Leases)
+				qi.LeasesLimit = nq.Leases
 			}
 			results <- result{idx: idx, name: uname, qi: qi}
 		}(i, u.ID, u.Name)
@@ -217,6 +227,10 @@ func (g *GOCAClient) HostDelete(ctx context.Context, id int) error {
 
 func (g *GOCAClient) HostRename(ctx context.Context, id int, name string) error {
 	return g.controller.Host(id).RenameContext(ctx, name)
+}
+
+func (g *GOCAClient) QuotaUpdate(ctx context.Context, userID int, tpl string) error {
+	return g.controller.User(userID).QuotaContext(ctx, tpl)
 }
 
 func (g *GOCAClient) GetVMIP(v *vm.VM) string {

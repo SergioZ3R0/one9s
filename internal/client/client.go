@@ -52,14 +52,23 @@ type ACLInfo struct {
 }
 
 type QuotaInfo struct {
+	UserID     int
 	Entity     string
-	VMs        string
+	VMs        string // used/limit
 	CPU        string
 	Memory     string
 	RunningVMs string
 	Images     string
 	Size       string
 	Leases     string
+	// Raw limits for editing
+	VMsLimit        int
+	CPULimit        int
+	MemoryLimit     int
+	RunningVMsLimit int
+	ImagesLimit     int
+	SizeLimit       int
+	LeasesLimit     int
 }
 
 type Client interface {
@@ -73,6 +82,7 @@ type Client interface {
 	HostAction(ctx context.Context, id int, action string) error
 	HostDelete(ctx context.Context, id int) error
 	HostRename(ctx context.Context, id int, name string) error
+	QuotaUpdate(ctx context.Context, userID int, tpl string) error
 	GetHostIDByName(ctx context.Context, name string) (int, error)
 	GetVMIP(v *vm.VM) string
 }
