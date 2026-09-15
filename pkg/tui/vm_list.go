@@ -198,7 +198,7 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			if strings.HasPrefix(state, "ACTIVE") {
 				return m, m.sendActionIfValid("poweroff", "ACTIVE")
 			}
-			return m, m.sendActionIfValid("resume", "POWEROFF", "SUSPENDED", "STOPPED")
+			return m, m.sendActionIfValid("resume", "POWEROFF", "SUSPENDED", "STOPPED", "UNDEPLOYED")
 		case "x":
 			state := m.getSelectedState()
 			if strings.HasPrefix(state, "ACTIVE") {
@@ -238,13 +238,17 @@ func matchesStateFilter(state, filter string) bool {
 	}
 	switch filter {
 	case "active":
+		// STATE=3 (ACTIVE) with any LCM sub-state
 		return strings.HasPrefix(state, "ACTIVE")
 	case "stopped":
-		return state == "STOPPED" || state == "SUSPENDED" || state == "HOLD"
+		// STOPPED, SUSPENDED, HOLD, DONE
+		return state == "STOPPED" || state == "SUSPENDED" || state == "HOLD" || state == "DONE"
 	case "poweroff":
-		return state == "POWEROFF" || state == "UNDEPLOYED" || state == "INIT" || state == "PENDING"
+		// POWEROFF, UNDEPLOYED (VM is off but preserved)
+		return state == "POWEROFF" || state == "UNDEPLOYED"
 	case "error":
-		return strings.Contains(state, "FAILURE") || strings.HasSuffix(state, "/UNKNOWN")
+		// CLONING_FAILURE or ACTIVE/*FAILURE* or ACTIVE/*UNKNOWN*
+		return state == "CLONING_FAILURE" || strings.Contains(state, "FAILURE") || strings.HasSuffix(state, "/UNKNOWN")
 	default:
 		return true
 	}

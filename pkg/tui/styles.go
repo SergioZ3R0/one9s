@@ -66,13 +66,14 @@ var (
 
 func stateStyle(state string) lipgloss.Style {
 	switch {
-	case strings.Contains(state, "RUNNING") || strings.HasPrefix(state, "ACTIVE"):
+	case strings.HasPrefix(state, "ACTIVE"):
 		return stateRunning
-	case strings.Contains(state, "POWEROFF") || strings.Contains(state, "SHUTDOWN") ||
-		strings.Contains(state, "STATE("):
+	case state == "POWEROFF" || state == "UNDEPLOYED" || strings.Contains(state, "SHUTDOWN"):
 		return statePoweroff
-	case strings.Contains(state, "SUSPENDED") || strings.Contains(state, "STOPPED"):
+	case state == "STOPPED" || state == "SUSPENDED" || state == "HOLD":
 		return stateSuspend
+	case strings.Contains(state, "FAILURE") || strings.HasSuffix(state, "/UNKNOWN"):
+		return statePoweroff
 	default:
 		return stateDefault
 	}
