@@ -270,6 +270,8 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case actionResultMsg:
 		if msg.err != nil {
 			m.err = msg.err
+		} else if msg.action == "update" && msg.resource == "quota" {
+			m.err = fmt.Errorf("Quota updated successfully")
 		}
 		switch msg.resource {
 		case "quota":
@@ -581,7 +583,12 @@ func (m rootModel) View() string {
 
 	var errBar string
 	if m.err != nil {
-		errBar = statePoweroff.Render(" ! " + m.err.Error())
+		msg := m.err.Error()
+		if strings.HasPrefix(msg, "Quota updated") {
+			errBar = stateRunning.Render(" ✓ " + msg)
+		} else {
+			errBar = statePoweroff.Render(" ! " + msg)
+		}
 	}
 
 	var content string
