@@ -166,7 +166,7 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			m.cursor = 0
 			m.scroll = 0
 			m.rebuildLines()
-		case "u":
+		case "i":
 			m.stateFilter = "active"
 			m.filterDirty = true
 			m.cursor = 0
@@ -193,18 +193,11 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 		case "r":
 			return m, m.sendActionIfValid("reboot", "ACTIVE")
 		case "s":
-			// Resume if stopped/powered off, poweroff if running
-			state := m.getSelectedState()
-			if strings.HasPrefix(state, "ACTIVE") {
-				return m, m.sendActionIfValid("poweroff", "ACTIVE")
-			}
+			return m, m.sendActionIfValid("stop", "ACTIVE")
+		case "u":
 			return m, m.sendActionIfValid("resume", "POWEROFF", "SUSPENDED", "STOPPED", "UNDEPLOYED")
 		case "x":
-			state := m.getSelectedState()
-			if strings.HasPrefix(state, "ACTIVE") {
-				return m, m.sendActionIfValid("suspend", "ACTIVE")
-			}
-			return m, m.sendActionIfValid("stop", "ACTIVE")
+			return m, m.sendActionIfValid("suspend", "ACTIVE")
 		case "d":
 			// Terminate handled by root via modal
 			return m, nil
@@ -398,7 +391,7 @@ func (m vmListModel) View() string {
 
 	filtered := m.getFiltered()
 	stateLbl := stateFilterLabel(m.stateFilter)
-	status := fmt.Sprintf(" %d/%d VMs  [%s]  cursor:%d/%d  a:all u:active o:stop p:off e:error",
+	status := fmt.Sprintf(" %d/%d VMs  [%s]  cursor:%d/%d  a:all i:active o:stop p:off e:error",
 		len(filtered), len(m.vms), stateLbl, m.cursor, len(filtered)-1)
 	parts = append(parts, statusStyle.Render(status))
 

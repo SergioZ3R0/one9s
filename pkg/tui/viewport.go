@@ -287,7 +287,8 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					"Offline Host",
 					fmt.Sprintf("Set host '%s' offline?\nThis host will stop running VMs.", hostName),
 					func() tea.Msg {
-						return hostActionResultMsg{hostID: hostID, action: "offline"}
+						err := m.client.HostAction(m.ctx, hostID, "offline")
+						return hostActionResultMsg{hostID: hostID, action: "offline", err: err}
 					},
 				)
 				return m, nil
@@ -297,19 +298,20 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fmt.Sprintf("Delete host '%s' from OpenNebula?", hostName),
 					"yes",
 					func() tea.Msg {
-						return hostActionResultMsg{hostID: hostID, action: "delete"}
+						err := m.client.HostDelete(m.ctx, hostID)
+						return hostActionResultMsg{hostID: hostID, action: "delete", err: err}
 					},
 				)
 				return m, nil
 			case "n":
-				currentName := hostName
 				m.modal = newTextInputModal(
 					"Rename Host",
-					fmt.Sprintf("Enter new name for '%s':", currentName),
+					fmt.Sprintf("Enter new name for '%s':", hostName),
 					"", // any non-empty input accepted
 					func() tea.Msg {
 						newName := m.modal.input.Value()
-						return hostActionResultMsg{hostID: hostID, action: "rename:" + newName}
+						err := m.client.HostRename(m.ctx, hostID, newName)
+						return hostActionResultMsg{hostID: hostID, action: "rename", err: err}
 					},
 				)
 				return m, nil
@@ -380,11 +382,6 @@ func (m rootModel) executeVMAction(id int, action string) tea.Cmd {
 func (m rootModel) executeHostAction(id int, action string) tea.Cmd {
 	return func() tea.Msg {
 		var err error
-		if strings.HasPrefix(action, "rename:") {
-			newName := strings.TrimPrefix(action, "rename:")
-			err = m.client.HostRename(m.ctx, id, newName)
-			return hostActionResultMsg{hostID: id, action: "rename", err: err}
-		}
 		switch action {
 		case "delete":
 			err = m.client.HostDelete(m.ctx, id)
@@ -513,15 +510,16 @@ func (m rootModel) helpView() string {
 	b.WriteString(tableHeader.Render("VM Actions (VMs tab only)"))
 	b.WriteString("\n")
 	b.WriteString("  r         Reboot (ACTIVE only)\n")
-	b.WriteString("  s         Poweroff (ACTIVE) / Resume (POWEROFF/SUSPENDED/STOPPED)\n")
-	b.WriteString("  x         Stop (ACTIVE) / Suspend (ACTIVE)\n")
+	b.WriteString("  s         Stop (ACTIVE only)\n")
+	b.WriteString("  u         Resume/Start (POWEROFF/SUSPENDED/STOPPED/UNDEPLOYED)\n")
+	b.WriteString("  x         Suspend (ACTIVE only)\n")
 	b.WriteString("  d         Terminate (hard, any state)\n")
 	b.WriteString("\n")
 
 	b.WriteString(tableHeader.Render("VM State Filters (VMs tab only)"))
 	b.WriteString("\n")
 	b.WriteString("  a         Show all VMs\n")
-	b.WriteString("  u         Active only\n")
+	b.WriteString("  i         Active only\n")
 	b.WriteString("  o         Stopped only\n")
 	b.WriteString("  p         Poweroff only\n")
 	b.WriteString("  e         Error only\n")
