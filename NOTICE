@@ -3,9 +3,3 @@ Copyright 2026 SergioZ3R0
 
 This product includes software developed by the one9s project.
 Licensed under the Apache License, Version 2.0.
-
-This product uses the following open source libraries:
-- Bubble Tea (github.com/charmbracelet/bubbletea) - MIT License
-- Lip Gloss (github.com/charmbracelet/lipgloss) - MIT License
-- Bubbles (github.com/charmbracelet/bubbles) - MIT License
-- GOCA (github.com/OpenNebula/one/src/oca/go/src/goca) - Apache License 2.0
