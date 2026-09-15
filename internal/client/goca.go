@@ -199,6 +199,26 @@ func (g *GOCAClient) GetHostIDByName(ctx context.Context, name string) (int, err
 	return g.controller.Hosts().ByNameContext(ctx, name)
 }
 
+func (g *GOCAClient) HostAction(ctx context.Context, id int, action string) error {
+	switch action {
+	case "enable":
+		return g.controller.Host(id).StatusContext(ctx, 0)
+	case "disable":
+		return g.controller.Host(id).StatusContext(ctx, 1)
+	case "offline":
+		return g.controller.Host(id).StatusContext(ctx, 2)
+	}
+	return fmt.Errorf("unknown host action: %s", action)
+}
+
+func (g *GOCAClient) HostDelete(ctx context.Context, id int) error {
+	return g.controller.Host(id).DeleteContext(ctx)
+}
+
+func (g *GOCAClient) HostRename(ctx context.Context, id int, name string) error {
+	return g.controller.Host(id).RenameContext(ctx, name)
+}
+
 func (g *GOCAClient) GetVMIP(v *vm.VM) string {
 	nics := v.Template.GetNICs()
 	if len(nics) == 0 {

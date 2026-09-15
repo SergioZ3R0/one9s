@@ -125,21 +125,63 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Modal intercepts ALL keys
 	if m.modal.active {
-		if k, ok := msg.(tea.KeyMsg); ok {
-			switch k.String() {
-			case "y", "enter":
-				cmd := m.modal.cmd
-				m.modal.active = false
-				if cmd != nil {
-					return m, cmd
+		switch m.modal.modalType {
+		case modalYN:
+			if k, ok := msg.(tea.KeyMsg); ok {
+				switch k.String() {
+				case "y":
+					cmd := m.modal.cmd
+					m.modal.active = false
+					if cmd != nil {
+						return m, cmd
+					}
+					return m, nil
+				case "n", "esc":
+					m.modal.active = false
+					return m, nil
 				}
-				return m, nil
-			case "n", "esc":
-				m.modal.active = false
-				return m, nil
 			}
+			return m, nil
+
+		case modalTextInput:
+			if k, ok := msg.(tea.KeyMsg); ok {
+				switch k.String() {
+				case "enter":
+					input := m.modal.input.Value()
+					m.modal.active = false
+					// If expecting is empty, accept any non-empty input (for rename)
+					if m.modal.expecting == "" {
+						if input == "" {
+							m.err = fmt.Errorf("input cannot be empty")
+							return m, nil
+						}
+						cmd := m.modal.cmd
+						if cmd != nil {
+							return m, cmd
+						}
+						return m, nil
+					}
+					// Otherwise check exact match (for delete confirmation)
+					if input == m.modal.expecting {
+						cmd := m.modal.cmd
+						if cmd != nil {
+							return m, cmd
+						}
+						return m, nil
+					}
+					m.err = fmt.Errorf("expected '%s', got '%s'", m.modal.expecting, input)
+					return m, nil
+				case "esc":
+					m.modal.active = false
+					return m, nil
+				default:
+					var cmd tea.Cmd
+					m.modal.input, cmd = m.modal.input.Update(msg)
+					cmds = append(cmds, cmd)
+				}
+			}
+			return m, tea.Batch(cmds...)
 		}
-		return m, nil
 	}
 
 	switch msg := msg.(type) {
@@ -170,7 +212,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.qList, _ = m.qList.Update(msg)
 
 	case vmActionMsg:
-		return m, m.executeAction(msg.id, msg.action)
+		return m, m.executeVMAction(msg.id, msg.action)
 
 	case actionResultMsg:
 		if msg.err != nil {
@@ -179,13 +221,26 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.fetchVMs())
 		return m, tea.Batch(cmds...)
 
+	case hostActionResultMsg:
+		if msg.err != nil {
+			m.err = msg.err
+		}
+		cmds = append(cmds, m.fetchHosts())
+		return m, tea.Batch(cmds...)
+
+	case hostRenameMsg:
+		if msg.err != nil {
+			m.err = msg.err
+		}
+		cmds = append(cmds, m.fetchHosts())
+		return m, tea.Batch(cmds...)
+
 	case errorMsg:
 		m.err = msg.err
 		return m, nil
 
 	case tea.KeyMsg:
 		k := msg.String()
-		// Store last keypress for diagnostics
 		m.lastKey = k
 
 		// Global keys
@@ -211,8 +266,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Forward ALL keys to active sub-model
-		// (terminate modal handled here for VMs tab)
+		// VM tab: terminate modal
 		if m.currentView == viewVMs && k == "d" {
 			vmID := m.getSelectedVMID()
 			m.modal = newModal(
@@ -224,6 +278,51 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 			return m, nil
 		}
+
+		// Host tab actions
+		if m.currentView == viewHosts {
+			hostID := m.getSelectedHostID()
+			hostName := m.getSelectedHostName()
+
+			switch k {
+			case "e":
+				return m, m.executeHostAction(hostID, "enable")
+			case "d":
+				return m, m.executeHostAction(hostID, "disable")
+			case "o":
+				m.modal = newModal(
+					"Offline Host",
+					fmt.Sprintf("Set host '%s' offline? This host will stop running VMs.", hostName),
+					func() tea.Msg {
+						return hostActionResultMsg{hostID: hostID, action: "offline"}
+					},
+				)
+				return m, nil
+			case "x":
+				m.modal = newTextInputModal(
+					"Delete Host",
+					fmt.Sprintf("Delete host '%s' from OpenNebula?", hostName),
+					"yes",
+					func() tea.Msg {
+						return hostActionResultMsg{hostID: hostID, action: "delete"}
+					},
+				)
+				return m, nil
+			case "n":
+				m.modal = newTextInputModal(
+					"Rename Host",
+					fmt.Sprintf("Enter new name for host '%s':", hostName),
+					"", // any non-empty input is accepted
+					func() tea.Msg {
+						newName := m.modal.input.Value()
+						return hostRenameMsg{hostID: hostID, name: newName}
+					},
+				)
+				return m, nil
+			}
+		}
+
+		// Forward ALL keys to active sub-model
 		switch m.currentView {
 		case viewVMs:
 			m.vmList, _ = m.vmList.Update(msg)
@@ -260,10 +359,47 @@ func (m *rootModel) getSelectedVMID() int {
 	return id
 }
 
-func (m rootModel) executeAction(id int, action string) tea.Cmd {
+func (m *rootModel) getSelectedHostID() int {
+	if m.hostList.cursor >= len(m.hostList.hosts) {
+		return -1
+	}
+	h := m.hostList.hosts[m.hostList.cursor]
+	id := 0
+	_, _ = fmt.Sscanf(h.ID, "%d", &id)
+	return id
+}
+
+func (m *rootModel) getSelectedHostName() string {
+	if m.hostList.cursor >= len(m.hostList.hosts) {
+		return ""
+	}
+	return m.hostList.hosts[m.hostList.cursor].Name
+}
+
+func (m rootModel) executeVMAction(id int, action string) tea.Cmd {
 	return func() tea.Msg {
 		err := m.client.VMAction(m.ctx, id, action)
 		return actionResultMsg{resource: "vm", id: id, action: action, err: err}
+	}
+}
+
+func (m rootModel) executeHostAction(id int, action string) tea.Cmd {
+	return func() tea.Msg {
+		var err error
+		switch action {
+		case "delete":
+			err = m.client.HostDelete(m.ctx, id)
+		default:
+			err = m.client.HostAction(m.ctx, id, action)
+		}
+		return hostActionResultMsg{hostID: id, action: action, err: err}
+	}
+}
+
+func (m rootModel) executeHostRename(id int, name string) tea.Cmd {
+	return func() tea.Msg {
+		err := m.client.HostRename(m.ctx, id, name)
+		return hostRenameMsg{hostID: id, name: name, err: err}
 	}
 }
 
@@ -307,8 +443,50 @@ func (m rootModel) View() string {
 
 	status := statusStyle.Render(fmt.Sprintf(" q:quit tab:switch F5:refresh /:filter ?:help  [last: %s]", m.lastKey))
 
-	return lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
+	view := lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
+
+	// Render modal overlay
+	if m.modal.active {
+		modalW := min(60, m.width-4)
+		modalH := 10
+		x := (m.width - modalW) / 2
+		y := (m.height - modalH) / 2
+		if x < 0 {
+			x = 0
+		}
+		if y < 0 {
+			y = 0
+		}
+		modalStr := modalBoxStyle.Width(modalW).Render(m.modal.View())
+		lines := strings.Split(view, "\n")
+		for i, line := range lines {
+			if i >= y && i < y+modalH {
+				modalLine := modalStr
+				modalLines := strings.Split(modalStr, "\n")
+				if i-y < len(modalLines) {
+					modalLine = modalLines[i-y]
+				}
+				prefix := ""
+				if x > 0 && x <= len(line) {
+					prefix = line[:x]
+				}
+				suffix := ""
+				if x+len(modalLine) < len(line) {
+					suffix = line[x+len(modalLine):]
+				}
+				lines[i] = prefix + modalLine + suffix
+			}
+		}
+		view = strings.Join(lines, "\n")
+	}
+
+	return view
 }
+
+var modalBoxStyle = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("203")).
+	Padding(1, 2)
 
 func (m rootModel) helpView() string {
 	var b strings.Builder
@@ -344,6 +522,15 @@ func (m rootModel) helpView() string {
 	b.WriteString("  o         Stopped only\n")
 	b.WriteString("  p         Poweroff only\n")
 	b.WriteString("  e         Error only\n")
+	b.WriteString("\n")
+
+	b.WriteString(tableHeader.Render("Host Actions (Hosts tab only)"))
+	b.WriteString("\n")
+	b.WriteString("  e         Enable host\n")
+	b.WriteString("  d         Disable host\n")
+	b.WriteString("  o         Offline host (confirm: type 'yes')\n")
+	b.WriteString("  x         Delete host (confirm: type 'yes')\n")
+	b.WriteString("  n         Rename host (confirm: type new name)\n")
 	b.WriteString("\n")
 
 	b.WriteString(tableHeader.Render("General"))

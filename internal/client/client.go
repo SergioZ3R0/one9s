@@ -70,6 +70,9 @@ type Client interface {
 	ListQuotas(ctx context.Context) ([]QuotaInfo, error)
 	VMAction(ctx context.Context, id int, action string) error
 	VMMigrate(ctx context.Context, id, hostID int, live bool) error
+	HostAction(ctx context.Context, id int, action string) error
+	HostDelete(ctx context.Context, id int) error
+	HostRename(ctx context.Context, id int, name string) error
 	GetHostIDByName(ctx context.Context, name string) (int, error)
 	GetVMIP(v *vm.VM) string
 }

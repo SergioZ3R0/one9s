@@ -29,6 +29,20 @@ type quotasFetchedMsg struct {
 	err    error
 }
 
+// --- Host actions ---
+
+type hostActionResultMsg struct {
+	hostID int
+	action string
+	err    error
+}
+
+type hostRenameMsg struct {
+	hostID int
+	name   string
+	err    error
+}
+
 // --- Action results ---
 
 type actionResultMsg struct {
