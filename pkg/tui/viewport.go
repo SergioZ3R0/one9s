@@ -504,41 +504,22 @@ func (m *rootModel) getSelectedQuota() client.QuotaInfo {
 func buildQuotaTemplate(values map[string]string) string {
 	var vmParts []string
 
-	if v := parseQuotaVal(values["vms"]); v > 0 {
-		vmParts = append(vmParts, fmt.Sprintf("VMS=%d", v))
+	if v := parseQuotaVal(values["vms"]); v != -1 {
+		vmParts = append(vmParts, fmt.Sprintf("VMS = %d", v))
 	}
-	if v := parseQuotaVal(values["cpu"]); v > 0 {
-		vmParts = append(vmParts, fmt.Sprintf("CPU=%d", v))
+	if v := parseQuotaVal(values["cpu"]); v != -1 {
+		vmParts = append(vmParts, fmt.Sprintf("CPU = %d", v))
 	}
-	if v := parseQuotaVal(values["memory"]); v > 0 {
-		vmParts = append(vmParts, fmt.Sprintf("MEMORY=%d", v))
+	if v := parseQuotaVal(values["memory"]); v != -1 {
+		vmParts = append(vmParts, fmt.Sprintf("MEMORY = %d", v))
 	}
-	if v := parseQuotaVal(values["running"]); v > 0 {
-		vmParts = append(vmParts, fmt.Sprintf("RUNNING_VMS=%d", v))
-	}
-
-	var dsParts []string
-	if v := parseQuotaVal(values["images"]); v > 0 {
-		dsParts = append(dsParts, fmt.Sprintf("IMAGES=%d", v))
-	}
-	if v := parseQuotaVal(values["size"]); v > 0 {
-		dsParts = append(dsParts, fmt.Sprintf("SIZE=%d", v))
-	}
-
-	var netParts []string
-	if v := parseQuotaVal(values["leases"]); v > 0 {
-		netParts = append(netParts, fmt.Sprintf("LEASES=%d", v))
+	if v := parseQuotaVal(values["running"]); v != -1 {
+		vmParts = append(vmParts, fmt.Sprintf("RUNNING_VMS = %d", v))
 	}
 
 	var parts []string
 	if len(vmParts) > 0 {
-		parts = append(parts, fmt.Sprintf("VM_QUOTA=[ %s ]", strings.Join(vmParts, ", ")))
-	}
-	if len(dsParts) > 0 {
-		parts = append(parts, fmt.Sprintf("DATASTORE_QUOTA=[ %s ]", strings.Join(dsParts, ", ")))
-	}
-	if len(netParts) > 0 {
-		parts = append(parts, fmt.Sprintf("NETWORK_QUOTA=[ %s ]", strings.Join(netParts, ", ")))
+		parts = append(parts, fmt.Sprintf("VM = [\n  %s\n]", strings.Join(vmParts, ",\n  ")))
 	}
 
 	return strings.Join(parts, "\n")
@@ -546,12 +527,12 @@ func buildQuotaTemplate(values map[string]string) string {
 
 func parseQuotaVal(s string) int {
 	s = strings.TrimSpace(s)
-	if s == "" || s == "0" {
-		return 0
+	if s == "" {
+		return -2 // unlimited
 	}
 	v, err := strconv.Atoi(s)
 	if err != nil {
-		return 0
+		return -2
 	}
 	return v
 }
