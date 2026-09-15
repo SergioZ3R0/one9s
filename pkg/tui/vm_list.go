@@ -108,34 +108,54 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 		}
 
 		viewH := m.viewHeight()
+		filtered := m.getFiltered()
+		maxCursor := len(filtered) - 1
+		if maxCursor < 0 {
+			maxCursor = 0
+		}
 
 		switch k {
 		case "down", "j":
-			if m.cursor < len(m.getFiltered())-1 {
+			if m.cursor < maxCursor {
 				m.cursor++
-				if m.cursor >= m.scroll+viewH {
-					m.scroll = m.cursor - viewH + 1
-				}
 			}
+			if m.cursor >= m.scroll+viewH {
+				m.scroll = m.cursor - viewH + 1
+			}
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, tea.Batch(cmds...)
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
-				if m.cursor < m.scroll {
-					m.scroll = m.cursor
-				}
 			}
+			if m.cursor < m.scroll {
+				m.scroll = m.cursor
+			}
+			m.rebuildLines()
+			return m, tea.Batch(cmds...)
 		case "pgdown", "f":
-			m.cursor = min(m.cursor+viewH, max(0, len(m.getFiltered())-1))
-			m.scroll = min(m.scroll+viewH, max(0, len(m.getFiltered())-viewH))
+			m.cursor = min(m.cursor+viewH, maxCursor)
+			m.scroll = min(m.scroll+viewH, max(0, len(filtered)-viewH))
+			m.rebuildLines()
+			return m, tea.Batch(cmds...)
 		case "pgup", "b":
 			m.cursor = max(m.cursor-viewH, 0)
 			m.scroll = max(m.scroll-viewH, 0)
+			m.rebuildLines()
+			return m, tea.Batch(cmds...)
 		case "g":
 			m.cursor = 0
 			m.scroll = 0
+			m.rebuildLines()
+			return m, tea.Batch(cmds...)
 		case "G":
-			m.cursor = max(0, len(m.getFiltered())-1)
+			m.cursor = maxCursor
 			m.scroll = max(0, m.cursor-viewH+1)
+			m.rebuildLines()
+			return m, tea.Batch(cmds...)
 		case "/":
 			m.filtering = true
 			m.filter.Focus()
@@ -345,8 +365,8 @@ func (m vmListModel) View() string {
 
 	filtered := m.getFiltered()
 	stateLbl := stateFilterLabel(m.stateFilter)
-	status := fmt.Sprintf(" %d/%d VMs  [%s]  a:all u:active o:stop p:off e:error",
-		len(filtered), len(m.vms), stateLbl)
+	status := fmt.Sprintf(" %d/%d VMs  [%s]  cursor:%d/%d  a:all u:active o:stop p:off e:error",
+		len(filtered), len(m.vms), stateLbl, m.cursor, len(filtered)-1)
 	parts = append(parts, statusStyle.Render(status))
 
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
