@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://one9s.scszero.com/sitemap.xml

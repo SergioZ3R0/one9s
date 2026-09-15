@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>one9s | OpenNebula TUI Terminal Client</title>
+    <meta name="description" content="one9s is a terminal user interface (TUI) for OpenNebula. Manage VMs, Hosts, Datastores, ACLs and Quotas — all from your terminal.">
+    <meta name="keywords" content="one9s, opennebula, tui, go, bubble tea, cloud, virtualization, terminal client, XML-RPC, VM management, cluster management">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="one9s | OpenNebula TUI">
+    <meta property="og:description" content="Monitor VMs, Hosts, Datastores, manage ACLs and Quotas from your terminal. A single binary for OpenNebula cluster management.">
+    <meta property="og:url" content="https://one9s.scszero.com/">
+    <meta property="og:image" content="https://one9s.scszero.com/one9s.svg">
+    <meta property="og:type" content="software">
+    <meta property="og:site_name" content="one9s">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="one9s | OpenNebula TUI">
+    <meta name="twitter:description" content="Monitor VMs, Hosts, Datastores, manage ACLs and Quotas from your terminal.">
+
+    <link rel="canonical" href="https://one9s.scszero.com/">
+
+    <link rel="icon" type="image/svg+xml" href="one9s.svg">
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "one9s",
+        "alternativeName": "OpenNebula TUI",
+        "operatingSystem": "Linux, macOS, Windows",
+        "applicationCategory": "DeveloperApplication",
+        "description": "Terminal User Interface (TUI) written in Go for managing OpenNebula clusters via XML-RPC API. Monitor VMs, Hosts, Datastores, ACLs and Quotas from your terminal.",
+        "url": "https://one9s.scszero.com/",
+        "sameAs": "https://github.com/SergioZ3R0/one9s",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "softwareHelp": {
+            "@type": "CreativeWork",
+            "url": "https://one9s.scszero.com/docs.html"
+        },
+        "author": {
+            "@type": "Person",
+            "name": "SergioZ3R0",
+            "url": "https://github.com/SergioZ3R0"
+        }
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #0B0E12;
+            --surface: #131920;
+            --accent: #2E86C1;
+            --accent-soft: #5DADE2;
+            --accent-warn: #F39C12;
+            --accent-fail: #E74C3C;
+            --text: #E8ECEF;
+            --muted: #7C8791;
+            --border: rgba(255,255,255,0.08);
+            --radius: 12px;
+            --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+        nav {
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        nav .logo svg { width: 44px; height: 44px; }
+        nav .logo span { font-weight: 700; font-size: 1.3rem; color: var(--accent); font-family: var(--font-mono); }
+        nav a:not(.logo) { color: var(--muted); text-decoration: none; margin-left: 24px; font-size: 0.85rem; transition: color .2s; font-family: var(--font-mono); }
+        nav a:not(.logo):hover { color: var(--text); }
+
+        header { padding: 80px 0 60px; text-align: center; }
+        header .logo-big svg { width: 180px; height: 180px; margin-bottom: 32px; }
+        header h1 { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.02em; font-family: var(--font-mono); }
+        header h1 span { color: var(--accent); }
+        header p { font-size: 1.25rem; color: var(--muted); max-width: 640px; margin: 16px auto 32px; }
+        .btn {
+            display: inline-block;
+            padding: 12px 32px;
+            border-radius: var(--radius);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all .2s;
+            margin: 0 8px;
+            font-family: var(--font-mono);
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-soft); transform: translateY(-1px); }
+        .btn-outline { border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--muted); transform: translateY(-1px); }
+
+        .badge-wrap { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-bottom: 20px; }
+        .badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+        .badge-go { background: #1a3a5c; color: var(--accent); }
+        .badge-tui { background: rgba(46,134,193,0.12); color: var(--accent); }
+        .badge-api { background: rgba(231,76,60,0.12); color: var(--accent-fail); }
+        .badge-cloud { background: rgba(52,152,219,0.12); color: var(--accent-soft); }
+
+        section { padding: 80px 0; }
+        section h2 { font-size: 2rem; font-weight: 700; margin-bottom: 48px; text-align: center; font-family: var(--font-mono); color: var(--accent); }
+
+        .hero-terminal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin: 40px auto;
+            max-width: 640px;
+            min-height: 260px;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+        .hero-terminal .prompt { color: var(--accent); }
+        .hero-terminal .output { color: var(--muted); }
+        .hero-terminal .highlight { color: var(--accent); }
+        .hero-terminal .ok { color: #22C55E; }
+        .hero-terminal .warn { color: var(--accent-warn); }
+        .hero-terminal .cursor { display: inline-block; width: 8px; height: 1em; background: var(--accent); animation: blink 1s step-end infinite; vertical-align: text-bottom; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+        .feature {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 32px;
+            transition: border-color .2s, transform .2s;
+        }
+        .feature:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .feature .icon { font-size: 2rem; margin-bottom: 16px; }
+        .feature h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--accent); font-family: var(--font-mono); }
+        .feature p { font-size: 0.9rem; color: var(--muted); }
+
+        .code-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 40px 20px 24px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin: 16px 0;
+            max-width: 100%;
+            position: relative;
+        }
+        .code-block .cmd { color: var(--accent); white-space: nowrap; }
+        .code-block .comment { color: var(--muted); }
+        .code-block .copy-btn {
+            position: absolute; top: 6px; right: 6px;
+            background: none; border: 1px solid var(--border);
+            border-radius: 4px; cursor: pointer; padding: 4px; line-height: 0;
+            transition: border-color .2s;
+        }
+        .code-block .copy-btn:hover { border-color: var(--accent); }
+        .code-block .copy-btn svg { width: 10px; height: 10px; display: block; }
+        .code-block .copy-btn .check { display: none; }
+        .code-block .copy-btn.copied .clip { display: none; }
+        .code-block .copy-btn.copied .check { display: block; }
+
+        .steps { counter-reset: step; max-width: 600px; margin: 0 auto; }
+        .step {
+            counter-increment: step;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            transition: border-color .2s;
+        }
+        .step:hover { border-color: var(--accent); }
+        .step::before {
+            content: counter(step);
+            background: var(--accent);
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            font-family: var(--font-mono);
+        }
+        .step-content { flex: 1; min-width: 0; }
+        .step-content h3 { font-size: 1rem; margin-bottom: 4px; font-family: var(--font-mono); }
+        .step-content p { font-size: 0.9rem; color: var(--muted); }
+
+        .faq { max-width: 680px; margin: 0 auto; }
+        .faq details {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 24px;
+            margin-bottom: 12px;
+            transition: border-color .2s;
+        }
+        .faq details[open] { border-color: var(--accent); }
+        .faq summary {
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            color: var(--text);
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .faq summary::-webkit-details-marker { display: none; }
+        .faq summary::after { content: "+"; font-size: 1.3rem; color: var(--accent); transition: transform .2s; }
+        .faq details[open] summary::after { content: "−"; }
+        .faq details p { margin-top: 12px; font-size: 0.9rem; color: var(--muted); line-height: 1.7; }
+        .faq details p code { background: var(--border); padding: 1px 6px; border-radius: 4px; font-size: 0.85rem; font-family: var(--font-mono); }
+
+        footer { border-top: 1px solid var(--border); padding: 40px 0; text-align: center; color: var(--muted); font-size: 0.85rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        @media (max-width: 768px) {
+            .badge { font-size: 0.7rem; padding: 3px 10px; }
+            .hero-terminal { font-size: 0.7rem; padding: 14px 16px; }
+        }
+        @media (max-width: 640px) {
+            header h1 { font-size: 2.4rem; }
+            header p { font-size: 1rem; }
+            nav a:not(.logo) { margin-left: 12px; font-size: 0.8rem; }
+            .features { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav role="navigation" aria-label="Main navigation">
+            <a href="#" class="logo" aria-label="one9s home">
+                <img src="one9s.svg" alt="one9s logo" width="44" height="44">
+                <span>one9s</span>
+            </a>
+            <div>
+                <a href="https://scszero.com" aria-label="Portfolio">Portfolio</a>
+                <a href="https://github.com/SergioZ3R0/one9s" aria-label="one9s on GitHub">GitHub</a>
+                <a href="/docs.html" aria-label="one9s documentation">Docs</a>
+            </div>
+        </nav>
+
+        <header role="banner">
+            <div class="logo-big">
+                <img src="one9s.svg" alt="one9s logo" width="180" height="180">
+            </div>
+            <h1>one<span>9s</span></h1>
+            <p>
+                A terminal user interface for <strong>OpenNebula</strong> cluster management.
+                Monitor VMs, Hosts and Datastores, manage ACLs and Quotas,
+                perform lifecycle actions — all from your terminal.
+            </p>
+            <div class="badge-wrap">
+                <span class="badge badge-go">Go 1.24+</span>
+                <span class="badge badge-tui">Bubble Tea TUI</span>
+                <span class="badge badge-cloud">OpenNebula</span>
+                <span class="badge badge-api">XML-RPC API</span>
+                <span class="badge badge-tui">GOCA</span>
+            </div>
+            <div class="hero-terminal" aria-label="Live terminal output from one9s" id="hero-terminal">
+                <span id="terminal-text">$ go build -o one9s ./cmd/one9s</span><span class="cursor" id="terminal-cursor"></span>
+            </div>
+            <a href="https://github.com/SergioZ3R0/one9s/releases" class="btn btn-primary">Download</a>
+            <a href="https://github.com/SergioZ3R0/one9s" class="btn btn-outline">GitHub</a>
+            <a href="/docs.html" class="btn btn-outline">Docs</a>
+        </header>
+
+        <main>
+            <section aria-labelledby="features-heading">
+                <h2 id="features-heading">Why one9s</h2>
+                <div class="features">
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="monitor icon">&#x1F4BB;</div>
+                        <h3>VM Monitoring</h3>
+                        <p>See all VMs with state, user, CPU, memory, IP and host. Filter by active, stopped, poweroff or error states.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="server icon">&#x1F5A5;</div>
+                        <h3>Host Management</h3>
+                        <p>Enable, disable, offline, rename or delete hosts. Confirmation modals for destructive operations.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="database icon">&#x1F4BE;</div>
+                        <h3>Datastores</h3>
+                        <p>Monitor storage pools with type, total capacity, used and free space.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="shield icon">&#x1F6E1;</div>
+                        <h3>ACL Rules</h3>
+                        <p>View access control rules with decoded hex values — user, resource, rights and zone in human-readable format.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="chart icon">&#x1F4CA;</div>
+                        <h3>User Quotas</h3>
+                        <p>See VM, CPU, Memory, Running VMs, Images, Size and Leases quotas per user.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="lightning icon">&#x26A1;</div>
+                        <h3>Instant Navigation</h3>
+                        <p>Zero auto-polling. Data fetched on startup and on F5. Direct line rendering for instant cursor movement.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section aria-labelledby="philosophy-heading">
+                <h2 id="philosophy-heading">Philosophy</h2>
+                <div class="features">
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="link icon">&#x1F517;</div>
+                        <h3>Pure XML-RPC API</h3>
+                        <p>one9s talks to OpenNebula's XML-RPC API via GOCA and nothing else — no SSH, no local CLI commands, no filesystem access.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="package icon">&#x1F4E6;</div>
+                        <h3>Portable</h3>
+                        <p>A single binary. No OpenNebula CLI installation required on the machine where you run it.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="shield icon">&#x1F6E1;</div>
+                        <h3>Secure</h3>
+                        <p>No shell access needed — only the XML-RPC endpoint must be reachable from your terminal.</p>
+                    </article>
+                    <article class="feature">
+                        <div class="icon" role="img" aria-label="globe icon">&#x1F310;</div>
+                        <h3>Cluster-agnostic</h3>
+                        <p>Works against any OpenNebula 7.x installation. Uses the official GOCA library for API compatibility.</p>
+                    </article>
+                </div>
+                <p style="text-align: center; color: var(--muted); max-width: 640px; margin: 2rem auto 0; font-size: 0.95rem;">
+                    If a feature isn't exposed by the OpenNebula XML-RPC API, one9s doesn't attempt to work around it.
+                    What you see is exactly what the API provides.
+                </p>
+            </section>
+
+            <section aria-labelledby="quickstart-heading">
+                <h2 id="quickstart-heading">Quick Start</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-content">
+                            <h3>Download</h3>
+                            <div class="code-block">
+                                <span class="comment"># Linux amd64</span><br>
+                                <span class="cmd">curl -LO https://github.com/SergioZ3R0/one9s/releases/latest/download/one9s-linux-amd64.zip</span><br>
+                                <span class="cmd">unzip one9s-linux-amd64.zip && chmod +x one9s</span>
+                                <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-content">
+                            <h3>Configure</h3>
+                            <p>Point it at your OpenNebula endpoint and set credentials</p>
+                            <div class="code-block">
+                                <span class="comment">export ONE_AUTH="oneadmin:password"</span><br>
+                                <span class="comment">export ONE_XMLRPC="http://opennebula:2633/RPC2"</span>
+                                <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-content">
+                            <h3>Run</h3>
+                            <div class="code-block">
+                                <span class="cmd">./one9s</span>
+                                <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section aria-labelledby="faq-heading">
+                <h2 id="faq-heading">FAQ</h2>
+                <div class="faq">
+                    <details>
+                        <summary>Does one9s need SSH access to the cluster?</summary>
+                        <p>No. one9s talks to OpenNebula's XML-RPC API via the GOCA library, so it only needs network access to the API endpoint.</p>
+                    </details>
+                    <details>
+                        <summary>Which OpenNebula versions are supported?</summary>
+                        <p>one9s is built against OpenNebula 7.x using the official GOCA library. It should work with any OpenNebula installation that exposes the XML-RPC API.</p>
+                    </details>
+                    <details>
+                        <summary>Is there auto-polling?</summary>
+                        <p>No. Data is fetched once on startup and only refreshed when you press F5. This keeps navigation instant with zero background API calls.</p>
+                    </details>
+                    <details>
+                        <summary>Can I manage quotas and ACLs?</summary>
+                        <p>Yes. The ACLs tab shows decoded rules (user, resource, rights, zone). The Quotas tab shows per-user quotas for VMs, CPU, Memory, Images and Leases.</p>
+                    </details>
+                </div>
+            </section>
+        </main>
+
+        <footer role="contentinfo">
+            <p>Apache 2.0 &middot; Built by <a href="https://github.com/SergioZ3R0">SergioZ3R0</a></p>
+        </footer>
+    </div>
+
+    <script>
+        function copyCmd(btn) {
+            const cmd = btn.parentElement.querySelector('.cmd, .comment').textContent;
+            navigator.clipboard.writeText(cmd).then(() => {
+                btn.classList.add('copied');
+                setTimeout(() => btn.classList.remove('copied'), 1500);
+            });
+        }
+
+        (function typeTerminal() {
+            var el = document.getElementById('terminal-text');
+            var cursor = document.getElementById('terminal-cursor');
+            if (!el) return;
+
+            var lines = [
+                [{t:'prompt',v:'$ '},{t:'highlight',v:'go'},{t:'output',v:' build -o one9s ./cmd/one9s'}],
+                [{t:'prompt',v:'$ '},{t:'highlight',v:'ONE_AUTH="oneadmin:opennebula" ./one9s'}],
+                [{t:'output',v:'  '},{t:'highlight',v:'Connected'},{t:'output',v:' to OpenNebula 7.4'}],
+                [{t:'output',v:'  '},{t:'ok',v:'VMs: 32'},{t:'output',v:' · '},{t:'ok',v:'Hosts: 4'},{t:'output',v:' · '},{t:'ok',v:'Datastores: 3'}],
+                [{t:'output',v:'  '},{t:'highlight',v:'31/32 VMs'},{t:'output',v:'  [All]  a:all i:active o:stop p:off e:error'}],
+            ];
+
+            var lineIdx = 0, spanIdx = 0, charIdx = 0;
+            var typedLines = [];
+
+            function renderAll() {
+                var html = '';
+                for (var i = 0; i < typedLines.length; i++) html += typedLines[i] + '<br>';
+                el.innerHTML = html;
+            }
+            function typeNext() {
+                if (lineIdx >= lines.length) { cursor.style.display = 'inline-block'; return; }
+                var spans = lines[lineIdx];
+                if (spanIdx >= spans.length) {
+                    typedLines.push(spans.map(function(s) { return '<span class="' + s.t + '">' + s.v + '</span>'; }).join(''));
+                    lineIdx++; spanIdx = 0; charIdx = 0;
+                    renderAll();
+                    setTimeout(typeNext, 150);
+                    return;
+                }
+                var s = spans[spanIdx];
+                if (charIdx >= s.v.length) {
+                    spanIdx++; charIdx = 0;
+                    renderAll();
+                    setTimeout(typeNext, 40);
+                    return;
+                }
+                var partial = s.v.substring(0, charIdx + 1);
+                var lineHTML = '';
+                for (var j = 0; j < spans.length; j++) {
+                    var text = (j < spanIdx) ? spans[j].v : (j === spanIdx ? partial : '');
+                    var cls = spans[j].t;
+                    if (text) lineHTML += '<span class="' + cls + '">' + text + '</span>';
+                }
+                var fullHTML = '';
+                for (var k = 0; k < typedLines.length; k++) fullHTML += typedLines[k] + '<br>';
+                fullHTML += lineHTML;
+                el.innerHTML = fullHTML;
+                charIdx++;
+                var ch = s.v[charIdx - 1];
+                var delay = (ch === ' ' || ch === '\u00b7') ? 20 : Math.random() * 35 + 20;
+                setTimeout(typeNext, delay);
+            }
+            cursor.style.display = 'none';
+            typeNext();
+        })();
+    </script>
+</body>
+</html>

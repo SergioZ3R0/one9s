@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>one9s Documentation | OpenNebula TUI Terminal Client</title>
+    <meta name="description" content="one9s documentation: installation, configuration, key bindings, VM actions, Host actions, ACL decoding and Quota management for OpenNebula.">
+    <meta name="keywords" content="one9s docs, opennebula, tui, go, bubble tea, VM management, cluster management, OpenNebula TUI documentation">
+    <link rel="canonical" href="https://one9s.scszero.com/docs.html">
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "one9s",
+        "alternativeName": "OpenNebula TUI",
+        "operatingSystem": "Linux, macOS, Windows",
+        "applicationCategory": "DeveloperApplication",
+        "description": "Terminal User Interface (TUI) written in Go for managing OpenNebula clusters via XML-RPC API.",
+        "url": "https://one9s.scszero.com/",
+        "sameAs": "https://github.com/SergioZ3R0/one9s",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "SergioZ3R0", "url": "https://github.com/SergioZ3R0" }
+    }
+    </script>
+
+    <link rel="icon" type="image/svg+xml" href="one9s.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #0B0E12;
+            --surface: #131920;
+            --accent: #2E86C1;
+            --accent-soft: #5DADE2;
+            --accent-warn: #F39C12;
+            --accent-fail: #E74C3C;
+            --text: #E8ECEF;
+            --muted: #7C8791;
+            --border: rgba(255,255,255,0.08);
+            --radius: 12px;
+            --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-sans); background: var(--bg); color: var(--text); line-height: 1.7; }
+        .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+        nav { padding: 20px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        nav .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        nav .logo svg { width: 44px; height: 44px; }
+        nav .logo span { font-weight: 700; font-size: 1.3rem; color: var(--accent); font-family: var(--font-mono); }
+        nav a:not(.logo) { color: var(--muted); text-decoration: none; margin-left: 24px; font-size: 0.85rem; transition: color .2s; font-family: var(--font-mono); }
+        nav a:not(.logo):hover { color: var(--text); }
+
+        .docs-header { padding: 60px 0 30px; }
+        .docs-header h1 { font-size: 2.5rem; font-weight: 800; font-family: var(--font-mono); letter-spacing: -0.02em; }
+        .docs-header h1 span { color: var(--accent); }
+        .docs-header p { color: var(--muted); margin-top: 8px; font-size: 1.05rem; }
+
+        .toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 40px; }
+        .toc h2 { font-size: 1rem; font-family: var(--font-mono); color: var(--accent); margin-bottom: 10px; }
+        .toc a { display: block; color: var(--muted); text-decoration: none; padding: 3px 0; font-size: 0.9rem; transition: color .2s; }
+        .toc a:hover { color: var(--text); }
+
+        section.doc { padding: 20px 0 40px; }
+        section.doc h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 16px; font-family: var(--font-mono); color: var(--accent); }
+        section.doc h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; font-family: var(--font-mono); }
+        section.doc p { color: var(--muted); margin-bottom: 12px; }
+        section.doc code { background: var(--border); padding: 1px 6px; border-radius: 4px; font-size: 0.9rem; font-family: var(--font-mono); }
+        section.doc ul { margin: 8px 0 12px 20px; color: var(--muted); }
+        section.doc li { margin-bottom: 6px; }
+
+        .code-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 24px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin: 12px 0 20px;
+            position: relative;
+        }
+        .code-block .cmd { color: var(--accent); }
+        .code-block .comment { color: var(--muted); }
+        .code-block .copy-btn {
+            position: absolute; top: 6px; right: 6px;
+            background: none; border: 1px solid var(--border);
+            border-radius: 4px; cursor: pointer; padding: 4px; line-height: 0;
+            transition: border-color .2s;
+        }
+        .code-block .copy-btn:hover { border-color: var(--accent); }
+        .code-block .copy-btn svg { width: 10px; height: 10px; display: block; }
+        .code-block .copy-btn .check { display: none; }
+        .code-block .copy-btn.copied .clip { display: none; }
+        .code-block .copy-btn.copied .check { display: block; }
+
+        table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 0.9rem; }
+        th { text-align: left; font-family: var(--font-mono); color: var(--accent); border-bottom: 1px solid var(--border); padding: 8px 12px; }
+        td { border-bottom: 1px solid var(--border); padding: 8px 12px; color: var(--muted); }
+        td code { background: var(--border); padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.85rem; }
+
+        .note { background: rgba(46,134,193,0.08); border: 1px solid rgba(46,134,193,0.3); border-radius: var(--radius); padding: 14px 18px; margin: 12px 0 20px; font-size: 0.9rem; color: var(--muted); }
+        .note strong { color: var(--accent); }
+
+        footer { border-top: 1px solid var(--border); padding: 40px 0; text-align: center; color: var(--muted); font-size: 0.85rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        @media (max-width: 640px) {
+            .docs-header h1 { font-size: 2rem; }
+            nav a:not(.logo) { margin-left: 12px; font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav role="navigation" aria-label="Main navigation">
+            <a href="/" class="logo" aria-label="one9s home">
+                <img src="one9s.svg" alt="one9s logo" width="44" height="44">
+                <span>one9s</span>
+            </a>
+            <div>
+                <a href="https://github.com/SergioZ3R0/one9s" aria-label="one9s on GitHub">GitHub</a>
+                <a href="/" aria-label="one9s home">Home</a>
+            </div>
+        </nav>
+
+        <div class="docs-header">
+            <h1>one<span>9s</span> Documentation</h1>
+            <p>Install, configure and use the OpenNebula TUI.</p>
+        </div>
+
+        <div class="toc" role="navigation" aria-label="Documentation contents">
+            <h2>Contents</h2>
+            <a href="#requirements">Requirements</a>
+            <a href="#installation">Installation</a>
+            <a href="#configuration">Configuration</a>
+            <a href="#usage">Usage &amp; key bindings</a>
+            <a href="#vm-actions">VM Actions</a>
+            <a href="#host-actions">Host Actions</a>
+            <a href="#acl-decoding">ACL Decoding</a>
+            <a href="#quotas">Quotas</a>
+        </div>
+
+        <main>
+            <section class="doc" id="requirements" aria-labelledby="requirements">
+                <h2>Requirements</h2>
+                <ul>
+                    <li><strong>Go 1.24+</strong> to build from source.</li>
+                    <li>An <strong>OpenNebula</strong> installation with XML-RPC API enabled (default port 2633).</li>
+                    <li>Credentials via <code>ONE_AUTH</code> environment variable or <code>~/.one/one_auth</code>.</li>
+                </ul>
+            </section>
+
+            <section class="doc" id="installation" aria-labelledby="installation">
+                <h2>Installation</h2>
+                <h3>Pre-built binaries (recommended)</h3>
+                <p>Download the zip for your platform from <a href="https://github.com/SergioZ3R0/one9s/releases" style="color: var(--accent);">GitHub Releases</a>:</p>
+                <div class="code-block">
+                    <span class="cmd">curl -LO https://github.com/SergioZ3R0/one9s/releases/latest/download/one9s-linux-amd64.zip</span><br>
+                    <span class="cmd">unzip one9s-linux-amd64.zip</span><br>
+                    <span class="cmd">chmod +x one9s</span>
+                    <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                </div>
+                <p class="note"><strong>Platforms:</strong> <code>one9s-linux-amd64</code>, <code>one9s-linux-arm64</code>, <code>one9s-darwin-amd64</code>, <code>one9s-darwin-arm64</code>, <code>one9s-windows-amd64.exe</code>.</p>
+
+                <h3>From source</h3>
+                <div class="code-block">
+                    <span class="cmd">git clone https://github.com/SergioZ3R0/one9s.git</span><br>
+                    <span class="cmd">cd one9s</span><br>
+                    <span class="cmd">make build</span>
+                    <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                </div>
+            </section>
+
+            <section class="doc" id="configuration" aria-labelledby="configuration">
+                <h2>Configuration</h2>
+                <p>one9s is configured through environment variables:</p>
+                <table>
+                    <tr><th>Variable</th><th>Required</th><th>Description</th></tr>
+                    <tr><td><code>ONE_XMLRPC</code></td><td>No</td><td>OpenNebula XML-RPC endpoint. Defaults to <code>http://localhost:2633/RPC2</code>.</td></tr>
+                    <tr><td><code>ONE_AUTH</code></td><td>Yes*</td><td>Credentials as <code>user:password</code> or path to auth file.</td></tr>
+                </table>
+                <p class="note"><strong>Note:</strong> Falls back to <code>~/.one/one_auth</code> if <code>ONE_AUTH</code> is not set.</p>
+                <div class="code-block">
+                    <span class="comment">export ONE_AUTH="oneadmin:password"</span><br>
+                    <span class="comment">export ONE_XMLRPC="http://opennebula:2633/RPC2"</span><br>
+                    <span class="cmd">./one9s</span>
+                    <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                </div>
+            </section>
+
+            <section class="doc" id="usage" aria-labelledby="usage">
+                <h2>Usage &amp; key bindings</h2>
+                <p>one9s opens a tabbed TUI. Navigate tabs and interact with the data.</p>
+                <table>
+                    <tr><th>Key</th><th>Action</th></tr>
+                    <tr><td><code>q</code> / <code>Ctrl+C</code></td><td>Quit</td></tr>
+                    <tr><td><code>tab</code></td><td>Next tab</td></tr>
+                    <tr><td><code>?</code></td><td>Help / back to VMs</td></tr>
+                    <tr><td><code>↑/↓</code> / <code>j/k</code></td><td>Navigate rows</td></tr>
+                    <tr><td><code>PgUp/PgDn</code> / <code>b/f</code></td><td>Page up / page down</td></tr>
+                    <tr><td><code>g/G</code></td><td>Go to start / end</td></tr>
+                    <tr><td><code>/</code></td><td>Fuzzy search / filter</td></tr>
+                    <tr><td><code>F5</code></td><td>Refresh current view</td></tr>
+                </table>
+
+                <h3>VMs tab</h3>
+                <p>All VMs with state, user, CPU, memory, IP and host. Filter by state (<code>i</code> active, <code>o</code> stopped, <code>p</code> poweroff, <code>e</code> error, <code>a</code> all) or use <code>/</code> for fuzzy text search.</p>
+
+                <h3>Hosts tab</h3>
+                <p>Cluster hosts with state, CPU%, memory%, running VMs. Enable, disable, offline, delete or rename hosts.</p>
+
+                <h3>Datastores tab</h3>
+                <p>Storage pools with type, total capacity, used and free space.</p>
+
+                <h3>ACLs tab</h3>
+                <p>Access control rules with decoded hex values: user, resource, rights and zone in human-readable format.</p>
+
+                <h3>Quotas tab</h3>
+                <p>User quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.</p>
+            </section>
+
+            <section class="doc" id="vm-actions" aria-labelledby="vm-actions">
+                <h2>VM Actions</h2>
+                <p>Actions are performed on the selected VM. State-aware: invalid actions show an error.</p>
+                <table>
+                    <tr><th>Key</th><th>Action</th><th>Valid States</th></tr>
+                    <tr><td><code>r</code></td><td>Reboot</td><td>ACTIVE only</td></tr>
+                    <tr><td><code>s</code></td><td>Stop</td><td>ACTIVE only</td></tr>
+                    <tr><td><code>u</code></td><td>Resume / Start</td><td>POWEROFF, SUSPENDED, STOPPED, UNDEPLOYED</td></tr>
+                    <tr><td><code>x</code></td><td>Suspend</td><td>ACTIVE only</td></tr>
+                    <tr><td><code>d</code></td><td>Terminate (hard)</td><td>Any state (with confirmation)</td></tr>
+                </table>
+
+                <h3>State filters</h3>
+                <table>
+                    <tr><th>Key</th><th>Filter</th></tr>
+                    <tr><td><code>a</code></td><td>All VMs</td></tr>
+                    <tr><td><code>i</code></td><td>Active only (ACTIVE/*)</td></tr>
+                    <tr><td><code>o</code></td><td>Stopped (STOPPED, SUSPENDED, HOLD, DONE)</td></tr>
+                    <tr><td><code>p</code></td><td>Poweroff (POWEROFF, UNDEPLOYED)</td></tr>
+                    <tr><td><code>e</code></td><td>Error (CLONING_FAILURE, ACTIVE/*FAILURE*)</td></tr>
+                </table>
+            </section>
+
+            <section class="doc" id="host-actions" aria-labelledby="host-actions">
+                <h2>Host Actions</h2>
+                <table>
+                    <tr><th>Key</th><th>Action</th><th>Confirmation</th></tr>
+                    <tr><td><code>e</code></td><td>Enable host</td><td>No</td></tr>
+                    <tr><td><code>d</code></td><td>Disable host</td><td>No</td></tr>
+                    <tr><td><code>o</code></td><td>Offline host</td><td>Yes (y/n modal)</td></tr>
+                    <tr><td><code>x</code></td><td>Delete host</td><td>Type <code>yes</code> to confirm</td></tr>
+                    <tr><td><code>n</code></td><td>Rename host</td><td>Type new name</td></tr>
+                </table>
+            </section>
+
+            <section class="doc" id="acl-decoding" aria-labelledby="acl-decoding">
+                <h2>ACL Decoding</h2>
+                <p>OpenNebula ACL rules are stored as hex values. one9s decodes them automatically:</p>
+                <table>
+                    <tr><th>Field</th><th>Example</th><th>Decoded</th></tr>
+                    <tr><td>User</td><td><code>100000002</code></td><td><code>#2</code> (UID 2)</td></tr>
+                    <tr><td>User</td><td><code>200000001</code></td><td><code>@1</code> (GID 1)</td></tr>
+                    <tr><td>User</td><td><code>400000000</code></td><td><code>*</code> (all)</td></tr>
+                    <tr><td>Resource</td><td><code>20400000000</code></td><td><code>HOST</code></td></tr>
+                    <tr><td>Resource</td><td><code>40100000065</code></td><td><code>NET/#101</code></td></tr>
+                    <tr><td>Rights</td><td><code>f</code></td><td><code>USE+MANAGE+ADMIN+CREATE</code></td></tr>
+                    <tr><td>Rights</td><td><code>2</code></td><td><code>MANAGE</code></td></tr>
+                    <tr><td>Zone</td><td><code>400000000</code></td><td><code>*</code> (all zones)</td></tr>
+                </table>
+            </section>
+
+            <section class="doc" id="quotas" aria-labelledby="quotas">
+                <h2>Quotas</h2>
+                <p>one9s shows per-user quotas fetched from <code>one.user.info</code> for each user. Columns show used/limit for:</p>
+                <ul>
+                    <li><strong>VMs</strong> — total VMs allocated</li>
+                    <li><strong>CPU</strong> — CPU cores allocated</li>
+                    <li><strong>Memory</strong> — Memory in MB</li>
+                    <li><strong>Running</strong> — Currently running VMs</li>
+                    <li><strong>Images</strong> — Disk images</li>
+                    <li><strong>Size</strong> — Disk size in MB</li>
+                    <li><strong>Leases</strong> — Network leases</li>
+                </ul>
+                <p class="note"><strong>Note:</strong> Quota data requires individual <code>one.user.info</code> calls per user. With many users, the first load may take a few seconds.</p>
+            </section>
+        </main>
+
+        <footer role="contentinfo">
+            <p>Apache 2.0 &middot; Built by <a href="https://github.com/SergioZ3R0">SergioZ3R0</a></p>
+        </footer>
+    </div>
+    <script>
+        function copyCmd(btn) {
+            const cmd = btn.parentElement.querySelector('.cmd, .comment').textContent;
+            navigator.clipboard.writeText(cmd).then(() => {
+                btn.classList.add('copied');
+                setTimeout(() => btn.classList.remove('copied'), 1500);
+            });
+        }
+    </script>
+</body>
+</html>
