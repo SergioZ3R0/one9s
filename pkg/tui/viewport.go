@@ -434,15 +434,25 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Forward ALL keys to active sub-model
 		switch m.currentView {
 		case viewVMs:
-			m.vmList, _ = m.vmList.Update(msg)
+			var cmd tea.Cmd
+			m.vmList, cmd = m.vmList.Update(msg)
+			cmds = append(cmds, cmd)
 		case viewHosts:
-			m.hostList, _ = m.hostList.Update(msg)
+			var cmd tea.Cmd
+			m.hostList, cmd = m.hostList.Update(msg)
+			cmds = append(cmds, cmd)
 		case viewDatastores:
-			m.dsList, _ = m.dsList.Update(msg)
+			var cmd tea.Cmd
+			m.dsList, cmd = m.dsList.Update(msg)
+			cmds = append(cmds, cmd)
 		case viewACLs:
-			m.aclList, _ = m.aclList.Update(msg)
+			var cmd tea.Cmd
+			m.aclList, cmd = m.aclList.Update(msg)
+			cmds = append(cmds, cmd)
 		case viewQuotas:
-			m.qList, _ = m.qList.Update(msg)
+			var cmd tea.Cmd
+			m.qList, cmd = m.qList.Update(msg)
+			cmds = append(cmds, cmd)
 		}
 	}
 
