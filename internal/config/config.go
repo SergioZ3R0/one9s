@@ -108,9 +108,3 @@ func parseAuthString(auth string) (user, pass string, err error) {
 	}
 	return "", "", fmt.Errorf("expected user:password format")
 }
-
-// parseAuthFile parses the content of an auth file.
-func parseAuthFile(data []byte) (user, pass string, err error) {
-	raw := strings.TrimSpace(string(data))
-	return parseAuthString(raw)
-}
