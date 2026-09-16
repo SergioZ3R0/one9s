@@ -134,7 +134,10 @@ func parseAuthString(auth string) (user, pass string, err error) {
 // promptVaultPassword prompts the user for the vault password.
 func promptVaultPassword() string {
 	fmt.Fprint(os.Stderr, "Vault password: ")
-	var pass string
-	_, _ = fmt.Scanln(&pass)
-	return pass
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(line)
 }

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -83,10 +84,8 @@ func vaultInit() {
 	fmt.Println()
 
 	// Get vault password
-	fmt.Print("Vault password: ")
-	pass1 := readLine()
-	fmt.Print("Confirm password: ")
-	pass2 := readLine()
+	pass1 := readPassword("Vault password: ")
+	pass2 := readPassword("Confirm password: ")
 	if pass1 != pass2 {
 		fmt.Fprintln(os.Stderr, "error: passwords do not match")
 		os.Exit(1)
@@ -159,8 +158,8 @@ func vaultDecrypt() {
 		os.Exit(1)
 	}
 
-	fmt.Print("Vault password: ")
-	pass := readLine()
+	fmt.Println("Vault content:")
+	pass := readPassword("Vault password: ")
 
 	plain, err := config.DecryptVault(vaultPath, pass)
 	if err != nil {
@@ -172,6 +171,24 @@ func vaultDecrypt() {
 }
 
 func readLine() string {
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	return strings.TrimSpace(line)
+}
+
+func readPassword(prompt string) string {
+	fmt.Fprint(os.Stderr, prompt)
+	// On Linux, try to hide input with stty
+	if _, err := exec.Command("stty", "-echo").StdinPipe(); err == nil {
+		cmd := exec.Command("stty", "-echo")
+		cmd.Stdin = os.Stdin
+		cmd.Run()
+		defer func() {
+			cmd = exec.Command("stty", "echo")
+			cmd.Stdin = os.Stdin
+			cmd.Run()
+		}()
+	}
 	reader := bufio.NewReader(os.Stdin)
 	line, _ := reader.ReadString('\n')
 	return strings.TrimSpace(line)
