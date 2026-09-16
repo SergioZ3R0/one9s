@@ -207,11 +207,9 @@
                 </div>
                 <p>Lines starting with <code>#</code> are comments. Blank lines are ignored.</p>
 
-                <h3>Environment variables</h3>
+                <h3>Alternative: environment variables</h3>
                 <div class="code-block">
-                    <span class="comment">export ONE_AUTH="oneadmin:password"</span><br>
-                    <span class="comment">export ONE_XMLRPC="http://opennebula:2633/RPC2"</span><br>
-                    <span class="cmd">./one9s</span>
+                    <span class="cmd">ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s</span>
                     <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
                 </div>
                 <p class="note"><strong>Note:</strong> If neither config file nor environment variables are set, one9s shows a clear error with setup instructions.</p>

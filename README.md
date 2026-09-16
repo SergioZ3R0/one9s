@@ -130,15 +130,11 @@ ONE_AUTH=oneadmin:password
 
 Lines starting with `#` are comments. Blank lines are ignored.
 
-### Environment variables
+### Alternative: environment variables
 
 ```bash
-export ONE_AUTH="oneadmin:password"
-export ONE_XMLRPC="http://opennebula:2633/RPC2"
-./one9s
+ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s
 ```
-
-If neither config file nor environment variables are set, one9s shows a clear error with setup instructions.
 
 ## Stack
 
