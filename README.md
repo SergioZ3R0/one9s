@@ -28,6 +28,27 @@ to the OpenNebula XML-RPC API.
 - **User Quotas** — view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
 - **Cross-platform** — single binary for Linux, macOS, Windows (amd64/arm64).
 
+## Configuration
+
+Create the config file before running one9s:
+
+```bash
+mkdir -p ~/.one9s
+cat > ~/.one9s/config << 'EOF'
+ONE_XMLRPC=http://opennebula:2633/RPC2
+ONE_AUTH=oneadmin:password
+EOF
+chmod 600 ~/.one9s/config
+```
+
+The config file is a simple `KEY=VALUE` format. Lines starting with `#` are comments.
+
+### Alternative: environment variables
+
+```bash
+ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s
+```
+
 ## Quick Start
 
 ### Download
@@ -36,13 +57,6 @@ to the OpenNebula XML-RPC API.
 curl -LO https://github.com/SergioZ3R0/one9s/releases/latest/download/one9s-linux-amd64.zip
 unzip one9s-linux-amd64.zip
 chmod +x one9s
-```
-
-### Configure
-
-```bash
-export ONE_AUTH="oneadmin:password"
-export ONE_XMLRPC="http://opennebula:2633/RPC2"
 ```
 
 ### Run
@@ -98,43 +112,6 @@ export ONE_XMLRPC="http://opennebula:2633/RPC2"
 | Key | Action |
 |-----|--------|
 | `e` | Edit user quota (form modal with VMs, CPU, Memory, etc.) |
-
-## Configuration
-
-one9s looks for credentials in this order:
-
-1. `ONE_AUTH` + `ONE_XMLRPC` environment variables
-2. `~/.one9s/config` file (recommended)
-3. `~/.one/one_auth` file (legacy, OpenNebula CLI compatible)
-
-### Quick setup (recommended)
-
-```bash
-mkdir -p ~/.one9s
-cat > ~/.one9s/config << 'EOF'
-ONE_XMLRPC=http://opennebula:2633/RPC2
-ONE_AUTH=oneadmin:password
-EOF
-chmod 600 ~/.one9s/config
-./one9s
-```
-
-### Config file format
-
-`~/.one9s/config` is a simple `KEY=VALUE` file:
-
-```
-ONE_XMLRPC=http://localhost:2633/RPC2
-ONE_AUTH=oneadmin:password
-```
-
-Lines starting with `#` are comments. Blank lines are ignored.
-
-### Alternative: environment variables
-
-```bash
-ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s
-```
 
 ## Stack
 

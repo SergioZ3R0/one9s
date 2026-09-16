@@ -17,7 +17,6 @@ type Config struct {
 // Load reads configuration in this order:
 //  1. ONE_AUTH + ONE_XMLRPC environment variables (backwards compatible)
 //  2. ~/.one9s/config file (recommended)
-//  3. ~/.one/one_auth file (legacy, for OpenNebula CLI compatibility)
 func Load() (Config, error) {
 	cfg := Config{}
 
@@ -41,21 +40,6 @@ func Load() (Config, error) {
 			configPath := filepath.Join(home, ".one9s", "config")
 			if data, readErr := os.ReadFile(configPath); readErr == nil {
 				cfg = parseConfigFile(string(data), cfg)
-			}
-		}
-	}
-
-	// --- 3. Legacy ~/.one/one_auth ---
-	if cfg.User == "" {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			authPath := filepath.Join(home, ".one", "one_auth")
-			if data, readErr := os.ReadFile(authPath); readErr == nil {
-				u, p, parseErr := parseAuthFile(data)
-				if parseErr == nil {
-					cfg.User = u
-					cfg.Password = p
-				}
 			}
 		}
 	}
