@@ -179,19 +179,41 @@
 
             <section class="doc" id="configuration" aria-labelledby="configuration">
                 <h2>Configuration</h2>
-                <p>one9s is configured through environment variables:</p>
-                <table>
-                    <tr><th>Variable</th><th>Required</th><th>Description</th></tr>
-                    <tr><td><code>ONE_XMLRPC</code></td><td>No</td><td>OpenNebula XML-RPC endpoint. Defaults to <code>http://localhost:2633/RPC2</code>.</td></tr>
-                    <tr><td><code>ONE_AUTH</code></td><td>Yes*</td><td>Credentials as <code>user:password</code> or path to auth file.</td></tr>
-                </table>
-                <p class="note"><strong>Note:</strong> Falls back to <code>~/.one/one_auth</code> if <code>ONE_AUTH</code> is not set.</p>
+                <p>one9s looks for credentials in this order:</p>
+                <ol>
+                    <li><code>ONE_AUTH</code> + <code>ONE_XMLRPC</code> environment variables</li>
+                    <li><code>~/.one9s/config</code> file (recommended)</li>
+                    <li><code>~/.one/one_auth</code> file (legacy, OpenNebula CLI compatible)</li>
+                </ol>
+
+                <h3>Quick setup (recommended)</h3>
+                <div class="code-block">
+                    <span class="cmd">mkdir -p ~/.one9s</span><br>
+                    <span class="cmd">cat &gt; ~/.one9s/config &lt;&lt; 'EOF'</span><br>
+                    <span class="comment">ONE_XMLRPC=http://opennebula:2633/RPC2</span><br>
+                    <span class="comment">ONE_AUTH=oneadmin:password</span><br>
+                    <span class="cmd">EOF</span><br>
+                    <span class="cmd">./one9s</span>
+                    <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                </div>
+
+                <h3>Config file format</h3>
+                <p><code>~/.one9s/config</code> is a simple <code>KEY=VALUE</code> file:</p>
+                <div class="code-block">
+                    <span class="comment">ONE_XMLRPC=http://localhost:2633/RPC2</span><br>
+                    <span class="comment">ONE_AUTH=oneadmin:password</span>
+                    <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                </div>
+                <p>Lines starting with <code>#</code> are comments. Blank lines are ignored.</p>
+
+                <h3>Environment variables</h3>
                 <div class="code-block">
                     <span class="comment">export ONE_AUTH="oneadmin:password"</span><br>
                     <span class="comment">export ONE_XMLRPC="http://opennebula:2633/RPC2"</span><br>
                     <span class="cmd">./one9s</span>
                     <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
                 </div>
+                <p class="note"><strong>Note:</strong> If neither config file nor environment variables are set, one9s shows a clear error with setup instructions.</p>
             </section>
 
             <section class="doc" id="usage" aria-labelledby="usage">

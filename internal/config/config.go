@@ -14,64 +14,119 @@ type Config struct {
 	Password string
 }
 
-// Load reads ONE_AUTH / ONE_XMLRPC env vars or falls back to ~/.one/one_auth.
+// Load reads configuration in this order:
+//  1. ONE_AUTH + ONE_XMLRPC environment variables (backwards compatible)
+//  2. ~/.one9s/config file (recommended)
+//  3. ~/.one/one_auth file (legacy, for OpenNebula CLI compatibility)
 func Load() (Config, error) {
-	cfg := Config{
-		Endpoint: os.Getenv("ONE_XMLRPC"),
-	}
+	cfg := Config{}
 
-	// Try ONE_AUTH env var first (format: "user:password" or path to file).
+	// --- 1. Environment variables ---
+	if ep := os.Getenv("ONE_XMLRPC"); ep != "" {
+		cfg.Endpoint = ep
+	}
 	if auth := os.Getenv("ONE_AUTH"); auth != "" {
-		if strings.Contains(auth, ":") && !strings.Contains(auth, string(filepath.Separator)) {
-			parts := strings.SplitN(auth, ":", 2)
-			cfg.User = parts[0]
-			cfg.Password = parts[1]
-		} else {
-			data, err := os.ReadFile(auth)
-			if err != nil {
-				return Config{}, fmt.Errorf("read ONE_AUTH file %s: %w", auth, err)
-			}
-			cfg.User, cfg.Password, err = parseAuthFile(data)
-			if err != nil {
-				return Config{}, err
-			}
+		u, p, err := parseAuthString(auth)
+		if err != nil {
+			return Config{}, fmt.Errorf("ONE_AUTH: %w", err)
 		}
-	} else {
+		cfg.User = u
+		cfg.Password = p
+	}
+
+	// --- 2. ~/.one9s/config ---
+	if cfg.User == "" {
 		home, err := os.UserHomeDir()
-		if err != nil {
-			return Config{}, fmt.Errorf("home dir: %w", err)
-		}
-		authPath := filepath.Join(home, ".one", "one_auth")
-		data, err := os.ReadFile(authPath)
-		if err != nil {
-			return Config{}, fmt.Errorf("read %s: %w", authPath, err)
-		}
-		cfg.User, cfg.Password, err = parseAuthFile(data)
-		if err != nil {
-			return Config{}, err
+		if err == nil {
+			configPath := filepath.Join(home, ".one9s", "config")
+			if data, readErr := os.ReadFile(configPath); readErr == nil {
+				cfg = parseConfigFile(string(data), cfg)
+			}
 		}
 	}
 
+	// --- 3. Legacy ~/.one/one_auth ---
+	if cfg.User == "" {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			authPath := filepath.Join(home, ".one", "one_auth")
+			if data, readErr := os.ReadFile(authPath); readErr == nil {
+				u, p, parseErr := parseAuthFile(data)
+				if parseErr == nil {
+					cfg.User = u
+					cfg.Password = p
+				}
+			}
+		}
+	}
+
+	// --- Defaults ---
 	if cfg.Endpoint == "" {
 		cfg.Endpoint = "http://localhost:2633/RPC2"
 	}
 
+	// --- Validation ---
 	if cfg.User == "" || cfg.Password == "" {
-		return Config{}, fmt.Errorf("missing OpenNebula credentials (set ONE_AUTH or ~/.one/one_auth)")
+		home, _ := os.UserHomeDir()
+		configPath := filepath.Join(home, ".one9s", "config")
+		return Config{}, fmt.Errorf(
+			"no OpenNebula credentials found\n\n"+
+				"Create ~/.one9s/config:\n"+
+				"  mkdir -p ~/.one9s\n"+
+				"  echo 'ONE_XMLRPC=http://opennebula:2633/RPC2' > %s\n"+
+				"  echo 'ONE_AUTH=oneadmin:password' >> %s\n\n"+
+				"Or set environment variables:\n"+
+				"  export ONE_AUTH=\"oneadmin:password\"\n"+
+				"  export ONE_XMLRPC=\"http://opennebula:2633/RPC2\"",
+			configPath, configPath,
+		)
 	}
 
 	return cfg, nil
 }
 
-func parseAuthFile(data []byte) (user, pass string, err error) {
-	raw := strings.TrimSpace(string(data))
-	if idx := strings.IndexByte(raw, ':'); idx >= 0 {
-		return raw[:idx], raw[idx+1:], nil
+// parseConfigFile parses KEY=VALUE lines from the config file.
+func parseConfigFile(data string, cfg Config) Config {
+	for _, line := range strings.Split(data, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+
+		switch key {
+		case "ONE_XMLRPC":
+			if cfg.Endpoint == "" {
+				cfg.Endpoint = value
+			}
+		case "ONE_AUTH":
+			if cfg.User == "" {
+				u, p, err := parseAuthString(value)
+				if err == nil {
+					cfg.User = u
+					cfg.Password = p
+				}
+			}
+		}
 	}
-	return "", "", fmt.Errorf("invalid auth file format (expected user:password)")
+	return cfg
 }
 
-// Session returns the XML-RPC session string "user:password".
-func (c Config) Session() string {
-	return c.User + ":" + c.Password
+// parseAuthString parses "user:password" format.
+func parseAuthString(auth string) (user, pass string, err error) {
+	if idx := strings.IndexByte(auth, ':'); idx >= 0 {
+		return auth[:idx], auth[idx+1:], nil
+	}
+	return "", "", fmt.Errorf("expected user:password format")
+}
+
+// parseAuthFile parses the content of an auth file.
+func parseAuthFile(data []byte) (user, pass string, err error) {
+	raw := strings.TrimSpace(string(data))
+	return parseAuthString(raw)
 }

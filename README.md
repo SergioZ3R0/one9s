@@ -101,12 +101,43 @@ export ONE_XMLRPC="http://opennebula:2633/RPC2"
 
 ## Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ONE_XMLRPC` | No | OpenNebula XML-RPC endpoint. Defaults to `http://localhost:2633/RPC2`. |
-| `ONE_AUTH` | Yes* | Credentials as `user:password` or path to auth file. |
+one9s looks for credentials in this order:
 
-\* Falls back to `~/.one/one_auth` if `ONE_AUTH` is not set.
+1. `ONE_AUTH` + `ONE_XMLRPC` environment variables
+2. `~/.one9s/config` file (recommended)
+3. `~/.one/one_auth` file (legacy, OpenNebula CLI compatible)
+
+### Quick setup (recommended)
+
+```bash
+mkdir -p ~/.one9s
+cat > ~/.one9s/config << 'EOF'
+ONE_XMLRPC=http://opennebula:2633/RPC2
+ONE_AUTH=oneadmin:password
+EOF
+./one9s
+```
+
+### Config file format
+
+`~/.one9s/config` is a simple `KEY=VALUE` file:
+
+```
+ONE_XMLRPC=http://localhost:2633/RPC2
+ONE_AUTH=oneadmin:password
+```
+
+Lines starting with `#` are comments. Blank lines are ignored.
+
+### Environment variables
+
+```bash
+export ONE_AUTH="oneadmin:password"
+export ONE_XMLRPC="http://opennebula:2633/RPC2"
+./one9s
+```
+
+If neither config file nor environment variables are set, one9s shows a clear error with setup instructions.
 
 ## Stack
 
