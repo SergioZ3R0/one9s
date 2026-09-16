@@ -26,6 +26,7 @@ to the OpenNebula XML-RPC API.
 - **Datastore Monitoring** — view storage pools with type, total capacity, used and free space.
 - **ACL Rules** — view and decode access control rules (user, resource, rights, zone) from hex to human-readable.
 - **User Quotas** — view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
+- **Vault Encryption** — credentials encrypted with AES-256-GCM, safe from third-party access.
 - **Cross-platform** — single binary for Linux, macOS, Windows (amd64/arm64).
 
 ## Quick Start
