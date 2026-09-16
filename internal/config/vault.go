@@ -117,7 +117,9 @@ func InitVault(path, password, user, pass, endpoint string) error {
 	}
 
 	dir := strings.TrimSuffix(path, string(os.PathSeparator)+"config.vault")
-	os.MkdirAll(dir, 0700)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
 
 	if err := os.WriteFile(path, encrypted, 0600); err != nil {
 		return fmt.Errorf("write vault: %w", err)
@@ -138,7 +140,9 @@ func EncryptConfig(vaultPath, configPath, password string) error {
 	}
 
 	dir := strings.TrimSuffix(vaultPath, string(os.PathSeparator)+"config.vault")
-	os.MkdirAll(dir, 0700)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
 
 	if err := os.WriteFile(vaultPath, encrypted, 0600); err != nil {
 		return fmt.Errorf("write vault: %w", err)
