@@ -28,9 +28,17 @@ to the OpenNebula XML-RPC API.
 - **User Quotas** — view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
 - **Cross-platform** — single binary for Linux, macOS, Windows (amd64/arm64).
 
-## Configuration
+## Quick Start
 
-Create the config file before running one9s:
+### Download
+
+```bash
+curl -LO https://github.com/SergioZ3R0/one9s/releases/latest/download/one9s-linux-amd64.zip
+unzip one9s-linux-amd64.zip
+chmod +x one9s
+```
+
+### Configure
 
 ```bash
 mkdir -p ~/.one9s
@@ -41,22 +49,10 @@ EOF
 chmod 600 ~/.one9s/config
 ```
 
-The config file is a simple `KEY=VALUE` format. Lines starting with `#` are comments.
-
-### Alternative: environment variables
+Or as a one-liner:
 
 ```bash
 ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s
-```
-
-## Quick Start
-
-### Download
-
-```bash
-curl -LO https://github.com/SergioZ3R0/one9s/releases/latest/download/one9s-linux-amd64.zip
-unzip one9s-linux-amd64.zip
-chmod +x one9s
 ```
 
 ### Run
