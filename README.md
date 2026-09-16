@@ -135,6 +135,19 @@ Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
 |-----|--------|
 | `e` | Edit user quota (form modal with VMs, CPU, Memory, etc.) |
 
+## Permissions
+
+one9s requires appropriate OpenNebula permissions. If an action fails due to insufficient permissions, you'll see a clear message like "permission denied: requires VM:MANAGE".
+
+| Action | Required Permission |
+|--------|-------------------|
+| View VMs, Hosts, Datastores, ACLs | VM:USE, HOST:USE, DS:USE, ACL:USE |
+| Reboot, Stop, Suspend, Resume VM | VM:MANAGE |
+| Terminate VM | VM:ADMIN |
+| Enable/Disable/Offline Host | HOST:ADMIN |
+| Delete/Rename Host | HOST:ADMIN |
+| Edit Quotas | Quota:ADMIN |
+
 ## Stack
 
 - **Language:** Go 1.24+

@@ -269,7 +269,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case actionResultMsg:
 		if msg.err != nil {
-			m.err = msg.err
+			m.err = humanizeError(msg.action, msg.err)
 		} else if msg.action == "update" && msg.resource == "quota" {
 			m.err = fmt.Errorf("quota updated successfully")
 		}
@@ -283,7 +283,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case hostActionResultMsg:
 		if msg.err != nil {
-			m.err = msg.err
+			m.err = humanizeError(msg.action, msg.err)
 		}
 		cmds = append(cmds, m.fetchHosts())
 		return m, tea.Batch(cmds...)
@@ -736,4 +736,30 @@ func (m rootModel) renderTab(label string, active bool) string {
 		return tabActive.Render(label)
 	}
 	return tabInactive.Render(label)
+}
+
+func humanizeError(action string, err error) error {
+	msg := err.Error()
+	if strings.Contains(msg, "Not authorized") || strings.Contains(msg, "Authorization") {
+		return fmt.Errorf("permission denied: requires %s", permissionNeeded(action))
+	}
+	return err
+}
+
+func permissionNeeded(action string) string {
+	switch action {
+	case "reboot", "stop", "suspend", "poweroff", "resume":
+		return "VM:MANAGE"
+	case "terminate-hard":
+		return "VM:ADMIN"
+	case "enable", "disable", "offline":
+		return "HOST:ADMIN"
+	case "delete":
+		return "HOST:ADMIN"
+	case "rename":
+		return "HOST:ADMIN"
+	case "update":
+		return "Quota:ADMIN"
+	}
+	return "sufficient permissions"
 }
