@@ -55,6 +55,31 @@ Or as a one-liner:
 ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s
 ```
 
+### Encrypted vault (recommended)
+
+Store credentials encrypted with AES-256-GCM:
+
+```bash
+# Create encrypted vault
+one9s vault init
+
+# Run (prompts for vault password)
+./one9s
+
+# Or skip vault with direct env vars (no password prompt)
+ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s
+```
+
+Vault commands:
+
+| Command | Description |
+|---------|-------------|
+| `one9s vault init` | Create new encrypted config |
+| `one9s vault encrypt` | Encrypt existing plain config |
+| `one9s vault decrypt` | Decrypt and display contents |
+
+Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
+
 ### Run
 
 ```bash

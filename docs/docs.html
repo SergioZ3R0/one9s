@@ -139,6 +139,7 @@
             <a href="#requirements">Requirements</a>
             <a href="#installation">Installation</a>
             <a href="#configuration">Configuration</a>
+            <a href="#vault">Encrypted Vault</a>
             <a href="#usage">Usage &amp; key bindings</a>
             <a href="#vm-actions">VM Actions</a>
             <a href="#host-actions">Host Actions</a>
@@ -206,6 +207,25 @@
                     <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
                 </div>
                 <p>Lines starting with <code>#</code> are comments. Blank lines are ignored.</p>
+
+                <h3>Encrypted vault (recommended)</h3>
+                <p>Store credentials encrypted with AES-256-GCM:</p>
+                <div class="code-block">
+                    <span class="comment"># Create encrypted vault</span><br>
+                    <span class="cmd">one9s vault init</span><br><br>
+                    <span class="comment"># Run (prompts for vault password)</span><br>
+                    <span class="cmd">./one9s</span><br><br>
+                    <span class="comment"># Skip vault with direct env vars</span><br>
+                    <span class="cmd">ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s</span>
+                    <button class="copy-btn" onclick="copyCmd(this)"><svg class="clip" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#7C8791" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="check" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2E86C1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+                </div>
+                <table>
+                    <tr><th>Command</th><th>Description</th></tr>
+                    <tr><td><code>one9s vault init</code></td><td>Create new encrypted config</td></tr>
+                    <tr><td><code>one9s vault encrypt</code></td><td>Encrypt existing plain config</td></tr>
+                    <tr><td><code>one9s vault decrypt</code></td><td>Decrypt and display contents</td></tr>
+                </table>
+                <p class="note"><strong>Note:</strong> Vault password can be set via <code>ONE_VAULT_PASS</code> env var to skip the prompt. When <code>ONE_AUTH</code> + <code>ONE_XMLRPC</code> are set directly, vault is not used.</p>
 
                 <h3>Alternative: environment variables</h3>
                 <div class="code-block">

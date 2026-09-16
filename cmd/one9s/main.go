@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -12,9 +14,14 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "vault" {
+		handleVault(os.Args[2:])
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "one9s: config error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "one9s: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -29,4 +36,143 @@ func main() {
 		fmt.Fprintf(os.Stderr, "one9s: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func handleVault(args []string) {
+	if len(args) == 0 {
+		printVaultUsage()
+		return
+	}
+
+	switch args[0] {
+	case "init":
+		vaultInit()
+	case "encrypt":
+		vaultEncrypt()
+	case "decrypt":
+		vaultDecrypt()
+	default:
+		printVaultUsage()
+	}
+}
+
+func printVaultUsage() {
+	fmt.Println("one9s vault - manage encrypted credentials")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  one9s vault init       Create a new encrypted config file")
+	fmt.Println("  one9s vault encrypt    Encrypt an existing plain config file")
+	fmt.Println("  one9s vault decrypt    Decrypt and display the vault contents")
+}
+
+func vaultInit() {
+	vaultPath := config.VaultPath()
+	if vaultPath == "" {
+		fmt.Fprintln(os.Stderr, "error: cannot determine home directory")
+		os.Exit(1)
+	}
+
+	// Check if vault already exists
+	if _, err := os.Stat(vaultPath); err == nil {
+		fmt.Fprintf(os.Stderr, "Vault already exists: %s\n", vaultPath)
+		fmt.Fprintln(os.Stderr, "Delete it first or use 'one9s vault encrypt' to encrypt an existing config.")
+		os.Exit(1)
+	}
+
+	fmt.Println("Create a new one9s vault configuration")
+	fmt.Println()
+
+	// Get vault password
+	fmt.Print("Vault password: ")
+	pass1 := readLine()
+	fmt.Print("Confirm password: ")
+	pass2 := readLine()
+	if pass1 != pass2 {
+		fmt.Fprintln(os.Stderr, "error: passwords do not match")
+		os.Exit(1)
+	}
+	if pass1 == "" {
+		fmt.Fprintln(os.Stderr, "error: password cannot be empty")
+		os.Exit(1)
+	}
+
+	// Get credentials
+	fmt.Print("OpenNebula user: ")
+	user := readLine()
+	fmt.Print("OpenNebula password: ")
+	pass := readLine()
+
+	fmt.Print("XML-RPC endpoint [http://localhost:2633/RPC2]: ")
+	endpoint := readLine()
+	if endpoint == "" {
+		endpoint = "http://localhost:2633/RPC2"
+	}
+
+	if err := config.InitVault(vaultPath, pass1, user, pass, endpoint); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Vault created: %s\n", vaultPath)
+	fmt.Println("Run 'one9s' to start (you will be prompted for the vault password).")
+}
+
+func vaultEncrypt() {
+	vaultPath := config.VaultPath()
+	configPath := strings.TrimSuffix(vaultPath, "config.vault") + "config"
+
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Config file not found: %s\n", configPath)
+		fmt.Fprintln(os.Stderr, "Create it first or use 'one9s vault init'.")
+		os.Exit(1)
+	}
+
+	// Check if vault already exists
+	if _, err := os.Stat(vaultPath); err == nil {
+		fmt.Fprintf(os.Stderr, "Vault already exists: %s\n", vaultPath)
+		fmt.Fprintln(os.Stderr, "Delete it first to re-encrypt.")
+		os.Exit(1)
+	}
+
+	fmt.Print("Vault password: ")
+	pass1 := readLine()
+	fmt.Print("Confirm password: ")
+	pass2 := readLine()
+	if pass1 != pass2 {
+		fmt.Fprintln(os.Stderr, "error: passwords do not match")
+		os.Exit(1)
+	}
+
+	if err := config.EncryptConfig(vaultPath, configPath, pass1); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Encrypted: %s -> %s\n", configPath, vaultPath)
+	fmt.Println("You can now delete the plain config file.")
+}
+
+func vaultDecrypt() {
+	vaultPath := config.VaultPath()
+	if _, err := os.Stat(vaultPath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Vault not found: %s\n", vaultPath)
+		os.Exit(1)
+	}
+
+	fmt.Print("Vault password: ")
+	pass := readLine()
+
+	plain, err := config.DecryptVault(vaultPath, pass)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(plain)
+}
+
+func readLine() string {
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	return strings.TrimSpace(line)
 }

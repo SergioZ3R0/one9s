@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,11 +17,12 @@ type Config struct {
 
 // Load reads configuration in this order:
 //  1. ONE_AUTH + ONE_XMLRPC environment variables (backwards compatible)
-//  2. ~/.one9s/config file (recommended)
+//  2. ~/.one9s/config.vault (encrypted, prompts for password)
+//  3. ~/.one9s/config (plain text)
 func Load() (Config, error) {
 	cfg := Config{}
 
-	// --- 1. Environment variables ---
+	// --- 1. Environment variables (highest priority) ---
 	if ep := os.Getenv("ONE_XMLRPC"); ep != "" {
 		cfg.Endpoint = ep
 	}
@@ -33,7 +35,26 @@ func Load() (Config, error) {
 		cfg.Password = p
 	}
 
-	// --- 2. ~/.one9s/config ---
+	// --- 2. Vault file ---
+	if cfg.User == "" {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			vaultPath := filepath.Join(home, ".one9s", "config.vault")
+			if data, readErr := os.ReadFile(vaultPath); readErr == nil && IsVaultFile(data) {
+				pass := VaultPassword()
+				if pass == "" {
+					pass = promptVaultPassword()
+				}
+				plain, decErr := Decrypt(data, pass)
+				if decErr != nil {
+					return Config{}, fmt.Errorf("vault decrypt: %w", decErr)
+				}
+				cfg = parseConfigFile(string(plain), cfg)
+			}
+		}
+	}
+
+	// --- 3. Plain config file ---
 	if cfg.User == "" {
 		home, err := os.UserHomeDir()
 		if err == nil {
@@ -58,11 +79,11 @@ func Load() (Config, error) {
 				"Create ~/.one9s/config:\n"+
 				"  mkdir -p ~/.one9s\n"+
 				"  echo 'ONE_XMLRPC=http://opennebula:2633/RPC2' > %s\n"+
-				"  echo 'ONE_AUTH=oneadmin:password' >> %s\n\n"+
+				"  echo 'ONE_AUTH=oneadmin:password' >> %s\n"+
+				"  chmod 600 %s\n\n"+
 				"Or set environment variables:\n"+
-				"  export ONE_AUTH=\"oneadmin:password\"\n"+
-				"  export ONE_XMLRPC=\"http://opennebula:2633/RPC2\"",
-			configPath, configPath,
+				"  ONE_AUTH=\"oneadmin:password\" ONE_XMLRPC=\"http://opennebula:2633/RPC2\" ./one9s",
+			configPath, configPath, configPath,
 		)
 	}
 
@@ -71,8 +92,9 @@ func Load() (Config, error) {
 
 // parseConfigFile parses KEY=VALUE lines from the config file.
 func parseConfigFile(data string, cfg Config) Config {
-	for _, line := range strings.Split(data, "\n") {
-		line = strings.TrimSpace(line)
+	scanner := bufio.NewScanner(strings.NewReader(data))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -107,4 +129,12 @@ func parseAuthString(auth string) (user, pass string, err error) {
 		return auth[:idx], auth[idx+1:], nil
 	}
 	return "", "", fmt.Errorf("expected user:password format")
+}
+
+// promptVaultPassword prompts the user for the vault password.
+func promptVaultPassword() string {
+	fmt.Fprint(os.Stderr, "Vault password: ")
+	var pass string
+	fmt.Scanln(&pass)
+	return pass
 }
