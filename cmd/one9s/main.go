@@ -98,8 +98,7 @@ func vaultInit() {
 	// Get credentials
 	fmt.Print("OpenNebula user: ")
 	user := readLine()
-	fmt.Print("OpenNebula password: ")
-	pass := readLine()
+	pass := readPassword("OpenNebula password: ")
 
 	fmt.Print("XML-RPC endpoint [http://localhost:2633/RPC2]: ")
 	endpoint := readLine()
