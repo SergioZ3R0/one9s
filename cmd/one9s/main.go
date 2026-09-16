@@ -182,11 +182,11 @@ func readPassword(prompt string) string {
 	if _, err := exec.Command("stty", "-echo").StdinPipe(); err == nil {
 		cmd := exec.Command("stty", "-echo")
 		cmd.Stdin = os.Stdin
-		cmd.Run()
+		_ = cmd.Run()
 		defer func() {
 			cmd = exec.Command("stty", "echo")
 			cmd.Stdin = os.Stdin
-			cmd.Run()
+			_ = cmd.Run()
 		}()
 	}
 	reader := bufio.NewReader(os.Stdin)
