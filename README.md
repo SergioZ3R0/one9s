@@ -115,6 +115,7 @@ cat > ~/.one9s/config << 'EOF'
 ONE_XMLRPC=http://opennebula:2633/RPC2
 ONE_AUTH=oneadmin:password
 EOF
+chmod 600 ~/.one9s/config
 ./one9s
 ```
 
