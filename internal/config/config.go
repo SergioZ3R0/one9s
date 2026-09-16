@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -131,9 +132,21 @@ func parseAuthString(auth string) (user, pass string, err error) {
 	return "", "", fmt.Errorf("expected user:password format")
 }
 
-// promptVaultPassword prompts the user for the vault password.
+// promptVaultPassword prompts the user for the vault password (hidden input).
 func promptVaultPassword() string {
 	fmt.Fprint(os.Stderr, "Vault password: ")
+
+	// Hide input on Linux/macOS
+	cmd := exec.Command("stty", "-echo")
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err == nil {
+		defer func() {
+			cmd = exec.Command("stty", "echo")
+			cmd.Stdin = os.Stdin
+			_ = cmd.Run()
+		}()
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')
 	if err != nil {
