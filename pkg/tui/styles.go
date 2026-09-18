@@ -9,7 +9,6 @@ import (
 var (
 	// OpenNebula-inspired blue palette
 	colorPrimary = lipgloss.Color("39")  // bright blue (OpenNebula brand)
-	colorAccent  = lipgloss.Color("75")  // light blue
 	colorWhite   = lipgloss.Color("15")  // bright white
 	colorGray    = lipgloss.Color("8")   // dark gray
 	colorDim     = lipgloss.Color("240") // frame gray
