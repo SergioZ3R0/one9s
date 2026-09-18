@@ -320,6 +320,12 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.refreshView()
 			}
 			return m, nil
+		case "F1":
+			if m.modal.active {
+				return m, nil
+			}
+			m.modal = newModal("about", aboutView(), nil)
+			return m, nil
 		}
 
 		// VM tab: terminate modal

@@ -7,61 +7,78 @@ import (
 )
 
 var (
-	// ANSI 256 palette - readable on dark terminals
-	primary = lipgloss.Color("129") // bright purple
-	accent  = lipgloss.Color("75")  // bright cyan
-	success = lipgloss.Color("114") // bright green
-	warning = lipgloss.Color("221") // bright yellow
-	danger  = lipgloss.Color("203") // bright red
-	dim     = lipgloss.Color("245") // gray
-	bright  = lipgloss.Color("231") // white
+	// ANSI colors - readable on dark terminals (same palette as srest)
+	colorPrimary = lipgloss.Color("12")  // blue
+	colorAccent  = lipgloss.Color("12")  // blue (same as primary)
+	colorWhite   = lipgloss.Color("15")  // bright white
+	colorGray    = lipgloss.Color("8")   // dark gray
+	colorDim     = lipgloss.Color("240") // frame gray
+	colorGreen   = lipgloss.Color("10")  // green
+	colorRed     = lipgloss.Color("9")   // red
+	colorYellow  = lipgloss.Color("3")   // yellow
+	colorPurple  = lipgloss.Color("57")  // purple (tabs)
 
 	// Header bar
 	headerStyle = lipgloss.NewStyle().
-			Background(primary).
-			Foreground(bright).
 			Bold(true).
+			Foreground(colorWhite).
+			Background(colorPrimary).
 			Padding(0, 1)
 
 	// Status bar
 	statusStyle = lipgloss.NewStyle().
-			Foreground(dim).
+			Foreground(colorGray).
 			Padding(0, 1)
 
 	// Tab styles
 	tabActive = lipgloss.NewStyle().
-			Foreground(primary).
 			Bold(true).
-			Underline(true)
+			Foreground(colorWhite).
+			Background(colorPurple).
+			Padding(0, 2)
 	tabInactive = lipgloss.NewStyle().
-			Foreground(dim)
+			Foreground(colorGray).
+			Padding(0, 2)
 
 	// Table
 	tableHeader = lipgloss.NewStyle().
-			Foreground(accent).
+			Foreground(colorPrimary).
 			Bold(true).
 			BorderBottom(true).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(dim)
+			BorderForeground(colorDim)
 
 	// State colors
-	stateRunning  = lipgloss.NewStyle().Foreground(success)
-	statePoweroff = lipgloss.NewStyle().Foreground(danger)
-	stateSuspend  = lipgloss.NewStyle().Foreground(warning)
-	stateDefault  = lipgloss.NewStyle().Foreground(dim)
+	stateRunning  = lipgloss.NewStyle().Foreground(colorGreen)
+	statePoweroff = lipgloss.NewStyle().Foreground(colorRed)
+	stateSuspend  = lipgloss.NewStyle().Foreground(colorYellow)
+	stateDefault  = lipgloss.NewStyle().Foreground(colorGray)
 
 	// Filter input
 	filterStyle = lipgloss.NewStyle().
-			Foreground(accent).
+			Foreground(colorPrimary).
 			Bold(true)
 
 	// Title
 	titleStyle = lipgloss.NewStyle().
-			Foreground(primary).
+			Foreground(colorPrimary).
 			Bold(true)
 
 	// VM list cursor
-	cursorStyle = lipgloss.NewStyle().Foreground(accent).Bold(true).Reverse(true)
+	cursorStyle = lipgloss.NewStyle().
+			Foreground(colorWhite).
+			Background(colorPurple).
+			Bold(true)
+
+	// Panel frame
+	panelStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colorDim).
+			Padding(0, 1)
+
+	// Divider
+	dividerStyle = lipgloss.NewStyle().
+			Foreground(colorDim)
 )
 
 func stateStyle(state string) lipgloss.Style {
