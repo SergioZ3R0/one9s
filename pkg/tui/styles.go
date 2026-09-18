@@ -7,16 +7,17 @@ import (
 )
 
 var (
-	// ANSI colors - readable on dark terminals (same palette as srest)
-	colorPrimary = lipgloss.Color("12")  // blue
-	colorAccent  = lipgloss.Color("12")  // blue (same as primary)
+	// OpenNebula-inspired blue palette
+	colorPrimary = lipgloss.Color("39")  // bright blue (OpenNebula brand)
+	colorAccent  = lipgloss.Color("75")  // light blue
 	colorWhite   = lipgloss.Color("15")  // bright white
 	colorGray    = lipgloss.Color("8")   // dark gray
 	colorDim     = lipgloss.Color("240") // frame gray
 	colorGreen   = lipgloss.Color("10")  // green
 	colorRed     = lipgloss.Color("9")   // red
 	colorYellow  = lipgloss.Color("3")   // yellow
-	colorPurple  = lipgloss.Color("57")  // purple (tabs)
+	colorCyan    = lipgloss.Color("14")  // cyan
+	colorBg      = lipgloss.Color("17")  // dark blue-gray background
 
 	// Header bar
 	headerStyle = lipgloss.NewStyle().
@@ -34,7 +35,7 @@ var (
 	tabActive = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(colorWhite).
-			Background(colorPurple).
+			Background(colorCyan).
 			Padding(0, 2)
 	tabInactive = lipgloss.NewStyle().
 			Foreground(colorGray).
@@ -42,7 +43,7 @@ var (
 
 	// Table
 	tableHeader = lipgloss.NewStyle().
-			Foreground(colorPrimary).
+			Foreground(colorCyan).
 			Bold(true).
 			BorderBottom(true).
 			BorderStyle(lipgloss.NormalBorder()).
@@ -56,7 +57,7 @@ var (
 
 	// Filter input
 	filterStyle = lipgloss.NewStyle().
-			Foreground(colorPrimary).
+			Foreground(colorCyan).
 			Bold(true)
 
 	// Title
@@ -67,7 +68,7 @@ var (
 	// VM list cursor
 	cursorStyle = lipgloss.NewStyle().
 			Foreground(colorWhite).
-			Background(colorPurple).
+			Background(colorPrimary).
 			Bold(true)
 
 	// Panel frame
