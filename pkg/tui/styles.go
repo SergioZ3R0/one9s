@@ -17,7 +17,6 @@ var (
 	colorRed     = lipgloss.Color("9")   // red
 	colorYellow  = lipgloss.Color("3")   // yellow
 	colorCyan    = lipgloss.Color("14")  // cyan
-	colorBg      = lipgloss.Color("17")  // dark blue-gray background
 
 	// Header bar
 	headerStyle = lipgloss.NewStyle().
@@ -70,16 +69,6 @@ var (
 			Foreground(colorWhite).
 			Background(colorPrimary).
 			Bold(true)
-
-	// Panel frame
-	panelStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(colorDim).
-			Padding(0, 1)
-
-	// Divider
-	dividerStyle = lipgloss.NewStyle().
-			Foreground(colorDim)
 )
 
 func stateStyle(state string) lipgloss.Style {
