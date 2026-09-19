@@ -710,13 +710,14 @@ func (m rootModel) View() string {
 		// Right: detail pane
 		detailW := m.width/2 - 2
 		var detailContent string
-		if m.currentView == viewVMs {
+		switch m.currentView {
+		case viewVMs:
 			if m.vmDetail != nil {
 				detailContent = vmDetailView(*m.vmDetail)
 			} else {
 				detailContent = filterStyle.Render("Select a VM") + statusStyle.Render("\n\nPress enter on a VM\nto view details")
 			}
-		} else if m.currentView == viewHosts {
+		case viewHosts:
 			if m.hostDetail != nil {
 				detailContent = hostDetailView(*m.hostDetail)
 			} else {
