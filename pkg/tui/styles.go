@@ -18,11 +18,6 @@ var (
 	colorPurple  = lipgloss.Color("57")  // purple (tab active bg)
 	colorDim     = lipgloss.Color("240") // frame gray
 
-	// Header - minimal line
-	headerStyle = lipgloss.NewStyle().
-			Foreground(colorPrimary).
-			Bold(true)
-
 	// Status bar
 	statusStyle = lipgloss.NewStyle().
 			Foreground(colorGray)
@@ -87,10 +82,6 @@ var (
 	titleStyle = lipgloss.NewStyle().
 			Foreground(colorPrimary).
 			Bold(true)
-
-	// Connection status
-	connectedStyle = lipgloss.NewStyle().
-			Foreground(colorGreen)
 )
 
 func stateStyle(state string) lipgloss.Style {
