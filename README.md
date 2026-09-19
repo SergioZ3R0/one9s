@@ -20,15 +20,15 @@ to the OpenNebula XML-RPC API.
 
 ## Features
 
-- **VM Management** — monitor all VMs with state, CPU, memory, IP, host. Split view with detail pane showing full VM info.
-- **VM Lifecycle** — reboot, stop, resume, suspend, terminate directly from the terminal with confirmation modals.
-- **Host Management** — enable, disable, offline, delete, rename hosts. Detail view with CPU/Memory progress bars.
-- **Datastore Monitoring** — view storage pools with type, total capacity, used and free space.
-- **ACL Rules** — view and decode access control rules (user, resource, rights, zone) from hex to human-readable.
-- **User Quotas** — view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
-- **Fuzzy Search** — `/` key for instant filtering on all tabs.
-- **Vault Encryption** — credentials encrypted with AES-256-GCM, safe from third-party access.
-- **Cross-platform** — single binary for Linux, macOS, Windows (amd64/arm64).
+- **VM Management** - monitor all VMs with state, CPU, memory, IP, host. Split view with detail pane showing full VM info.
+- **VM Lifecycle** - reboot, stop, resume, suspend, terminate directly from the terminal with confirmation modals.
+- **Host Management** - enable, disable, offline, delete, rename hosts. Detail view with CPU/Memory progress bars.
+- **Datastore Monitoring** - view storage pools with type, total capacity, used and free space.
+- **ACL Rules** - view and decode access control rules (user, resource, rights, zone) from hex to human-readable.
+- **User Quotas** - view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
+- **Fuzzy Search** - `/` key for instant filtering on all tabs.
+- **Vault Encryption** - credentials encrypted with AES-256-GCM, safe from third-party access.
+- **Cross-platform** - single binary for Linux, macOS, Windows (amd64/arm64).
 
 ## Quick Start
 
