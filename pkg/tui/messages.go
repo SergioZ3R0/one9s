@@ -29,6 +29,10 @@ type quotasFetchedMsg struct {
 	err    error
 }
 
+type vmDetailFetchedMsg struct {
+	vm client.VMDetail
+}
+
 // --- Host actions ---
 
 type hostActionResultMsg struct {

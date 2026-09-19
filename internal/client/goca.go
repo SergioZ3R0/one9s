@@ -209,6 +209,82 @@ func (g *GOCAClient) GetHostIDByName(ctx context.Context, name string) (int, err
 	return g.controller.Hosts().ByNameContext(ctx, name)
 }
 
+func (g *GOCAClient) GetVMInfo(ctx context.Context, id int) (*VMInfo, error) {
+	vm, err := g.controller.VM(id).InfoContext(ctx, false)
+	if err != nil {
+		return nil, fmt.Errorf("vm.info: %w", err)
+	}
+
+	nics := vm.Template.GetNICs()
+	ip := ""
+	if len(nics) > 0 {
+		ip, _ = nics[0].Get(shared.IP)
+	}
+
+	hostname := ""
+	if len(vm.HistoryRecords) > 0 {
+		hostname = vm.HistoryRecords[0].Hostname
+	}
+
+	return &VMInfo{
+		ID:       vm.ID,
+		Name:     vm.Name,
+		State:    MapVMState(vm.StateRaw, vm.LCMStateRaw),
+		User:     vm.UName,
+		Group:    vm.GName,
+		CPU:      getTemplateStr(&vm.Template, "CPU"),
+		Memory:   getTemplateStr(&vm.Template, "MEMORY"),
+		IP:       ip,
+		Host:     hostname,
+		DeployID: vm.DeployID,
+	}, nil
+}
+
+func (g *GOCAClient) GetVMDetailInfo(ctx context.Context, id int) (VMDetail, error) {
+	vm, err := g.controller.VM(id).InfoContext(ctx, false)
+	if err != nil {
+		return VMDetail{}, fmt.Errorf("vm.info: %w", err)
+	}
+
+	nics := vm.Template.GetNICs()
+	ip, mac, network, bridge := "", "", "", ""
+	if len(nics) > 0 {
+		ip, _ = nics[0].Get(shared.IP)
+		mac, _ = nics[0].Get(shared.MAC)
+		network, _ = nics[0].Get(shared.Network)
+		bridge, _ = nics[0].Get(shared.Bridge)
+	}
+
+	hostname, cluster := "", ""
+	if len(vm.HistoryRecords) > 0 {
+		hostname = vm.HistoryRecords[0].Hostname
+		cluster = fmt.Sprintf("%d", vm.HistoryRecords[0].CID)
+	}
+
+	vcpu := getTemplateStr(&vm.Template, "VCPU")
+	if vcpu == "-" {
+		vcpu = getTemplateStr(&vm.Template, "CPU")
+	}
+
+	return VMDetail{
+		ID:       vm.ID,
+		Name:     vm.Name,
+		State:    MapVMState(vm.StateRaw, vm.LCMStateRaw),
+		User:     vm.UName,
+		Group:    vm.GName,
+		CPU:      getTemplateStr(&vm.Template, "CPU"),
+		Memory:   getTemplateStr(&vm.Template, "MEMORY"),
+		VCPU:     vcpu,
+		IP:       ip,
+		MAC:      mac,
+		Network:  network,
+		Bridge:   bridge,
+		Host:     hostname,
+		Cluster:  cluster,
+		DeployID: vm.DeployID,
+	}, nil
+}
+
 func (g *GOCAClient) HostAction(ctx context.Context, id int, action string) error {
 	switch action {
 	case "enable":

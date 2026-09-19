@@ -39,6 +39,7 @@ type rootModel struct {
 	qList    quotaListModel
 
 	currentView viewName
+	vmDetail    *client.VMDetail // nil when showing list
 	modal       modalState
 	fetching    bool
 	lastKey     string
@@ -264,9 +265,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case aclsFetchedMsg:
 		m.fetching = false
 		m.aclList, _ = m.aclList.Update(msg)
+	case vmDetailFetchedMsg:
+		m.vmDetail = &msg.vm
+
 	case quotasFetchedMsg:
-		m.fetching = false
-		m.qList, _ = m.qList.Update(msg)
 
 	case vmActionMsg:
 		return m, m.executeVMAction(msg.id, msg.action)
@@ -334,6 +336,21 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				title:     "about",
 				message:   aboutView(),
 			}
+			return m, nil
+		}
+
+		// VM tab: enter to show detail
+		if m.currentView == viewVMs && m.vmDetail == nil && k == "enter" {
+			vmID := m.getSelectedVMID()
+			if vmID >= 0 {
+				cmds = append(cmds, m.fetchVMDetail(vmID))
+				return m, tea.Batch(cmds...)
+			}
+		}
+
+		// VM detail: esc to go back
+		if m.vmDetail != nil && k == "esc" {
+			m.vmDetail = nil
 			return m, nil
 		}
 
@@ -478,6 +495,7 @@ func (m *rootModel) cycleView(dir int) {
 	for i, v := range allViews {
 		if v == m.currentView {
 			m.currentView = allViews[(i+dir+len(allViews))%len(allViews)]
+			m.vmDetail = nil
 			return
 		}
 	}
@@ -569,6 +587,16 @@ func (m rootModel) executeVMAction(id int, action string) tea.Cmd {
 	}
 }
 
+func (m rootModel) fetchVMDetail(id int) tea.Cmd {
+	return func() tea.Msg {
+		vm, err := m.client.GetVMDetailInfo(m.ctx, id)
+		if err != nil {
+			return errorMsg{err: err}
+		}
+		return vmDetailFetchedMsg{vm: vm}
+	}
+}
+
 func (m rootModel) executeHostAction(id int, action string) tea.Cmd {
 	return func() tea.Msg {
 		var err error
@@ -587,10 +615,9 @@ func (m rootModel) View() string {
 		return m.renderModalView()
 	}
 
-	// Simple layout: header + panel + footer, no outer frame
+	// --- Header ---
 	line3 := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
 
-	// --- Header ---
 	left := appNameStyle.Render("one9s")
 	right := connectionStyle.Render("Connected • OpenNebula")
 	gap := max(0, m.width-lipgloss.Width(left)-lipgloss.Width(right)-2)
@@ -619,11 +646,63 @@ func (m rootModel) View() string {
 		}
 	}
 
-	// --- Content ---
+	// --- VMs tab: split view (list + detail) ---
+	if m.currentView == viewVMs {
+		listW := m.width/2 - 2
+		viewH := m.height - 7
+		if viewH < 1 {
+			viewH = 1
+		}
+
+		// Left: VM list
+		listContent := m.vmList.View()
+		listLines := strings.Split(listContent, "\n")
+		var listVisible []string
+		for i, line := range listLines {
+			if i >= viewH {
+				break
+			}
+			if lipgloss.Width(line) > listW {
+				line = truncate(line, listW-1)
+			}
+			listVisible = append(listVisible, line)
+		}
+		leftPanel := panelStyle.Width(max(30, listW)).Render(strings.Join(listVisible, "\n"))
+
+		// Right: detail pane
+		detailW := m.width/2 - 2
+		var detailContent string
+		if m.vmDetail != nil {
+			detailContent = vmDetailView(*m.vmDetail)
+		} else {
+			detailContent = filterStyle.Render("Select a VM") + statusStyle.Render("\n\nPress enter on a VM\nto view details")
+		}
+		detailLines := strings.Split(detailContent, "\n")
+		var detailVisible []string
+		for i, line := range detailLines {
+			if i >= viewH {
+				break
+			}
+			if lipgloss.Width(line) > detailW {
+				line = truncate(line, detailW-1)
+			}
+			detailVisible = append(detailVisible, line)
+		}
+		rightPanel := panelStyle.Width(max(30, detailW)).Render(strings.Join(detailVisible, "\n"))
+
+		split := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
+
+		footerSep := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
+		footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • enter:detail • /:filter • ? help • q quit")
+		footer := lipgloss.JoinVertical(lipgloss.Left, footerSep, footerText)
+
+		inner := lipgloss.JoinVertical(lipgloss.Left, header, errBar, split, footer)
+		return frameStyle.Render(inner)
+	}
+
+	// --- Other tabs: single panel ---
 	var content string
 	switch m.currentView {
-	case viewVMs:
-		content = m.vmList.View()
 	case viewHosts:
 		content = m.hostList.View()
 	case viewDatastores:
@@ -636,21 +715,17 @@ func (m rootModel) View() string {
 		content = m.helpView()
 	}
 
-	// --- Panel ---
-	// Panel width = terminal width minus outer frame (4 chars)
 	panelW := m.width - 4
 	viewH := m.height - 7
 	if viewH < 1 {
 		viewH = 1
 	}
-
 	lines := strings.Split(content, "\n")
 	var visible []string
 	for i, line := range lines {
 		if i >= viewH {
 			break
 		}
-		// Truncate line to fit inside panel (minus panel border 4 chars)
 		maxW := panelW - 4
 		if maxW < 10 {
 			maxW = 10
@@ -660,15 +735,12 @@ func (m rootModel) View() string {
 		}
 		visible = append(visible, line)
 	}
-
 	panel := panelStyle.Render(strings.Join(visible, "\n"))
 
-	// --- Footer ---
 	footerSep := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
-	footerText := statusStyle.Render(" shift+tab/[ prev • tab/] next • / filter • ? help • Ctrl+R refresh • q quit")
+	footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • /:filter • ? help • q quit")
 	footer := lipgloss.JoinVertical(lipgloss.Left, footerSep, footerText)
 
-	// --- Outer frame (never overflows) ---
 	inner := lipgloss.JoinVertical(lipgloss.Left, header, errBar, panel, footer)
 	return frameStyle.Render(inner)
 }

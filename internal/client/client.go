@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/OpenNebula/one/src/oca/go/src/goca/schemas/vm"
 )
 
 // VMInfo holds the flattened fields the TUI needs from a VM.
@@ -71,6 +69,26 @@ type QuotaInfo struct {
 	LeasesLimit     int
 }
 
+type VMDetail struct {
+	ID        int
+	Name      string
+	State     string
+	User      string
+	Group     string
+	CPU       string
+	Memory    string
+	VCPU      string
+	IP        string
+	MAC       string
+	Network   string
+	Bridge    string
+	Host      string
+	Cluster   string
+	DeployID  string
+	StartTime string
+	EndTime   string
+}
+
 type Client interface {
 	ListVMs(ctx context.Context) ([]VMInfo, error)
 	ListHosts(ctx context.Context) ([]HostInfo, error)
@@ -83,8 +101,9 @@ type Client interface {
 	HostDelete(ctx context.Context, id int) error
 	HostRename(ctx context.Context, id int, name string) error
 	QuotaUpdate(ctx context.Context, userID int, tpl string) error
+	GetVMInfo(ctx context.Context, id int) (*VMInfo, error)
+	GetVMDetailInfo(ctx context.Context, id int) (VMDetail, error)
 	GetHostIDByName(ctx context.Context, name string) (int, error)
-	GetVMIP(v *vm.VM) string
 }
 
 // VM state names - Official OpenNebula 7.4 mapping
