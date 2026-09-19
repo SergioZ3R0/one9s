@@ -14,11 +14,16 @@ import (
 	"github.com/scabello/one9s/pkg/tui"
 )
 
+// Version is set at build time via -ldflags.
+var Version = "dev"
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "vault" {
 		handleVault(os.Args[2:])
 		return
 	}
+
+	tui.SetVersion(Version)
 
 	cfg, err := config.Load()
 	if err != nil {

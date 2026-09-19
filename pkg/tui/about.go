@@ -14,6 +14,12 @@ const aboutASCII = `██████╗ ███╗   ██╗████�
 ╚██████╔╝██║ ╚████║███████╗ █████╔╝███████║
 ╚═════╝ ╚═╝  ╚═══╝╚══════╝ ╚════╝ ╚══════╝`
 
+var aboutVersion = "dev"
+
+func SetVersion(v string) {
+	aboutVersion = v
+}
+
 func aboutView() string {
 	var b strings.Builder
 
@@ -21,7 +27,7 @@ func aboutView() string {
 	b.WriteString("\n\n")
 
 	info := []struct{ k, v string }{
-		{"Version", "0.1.2"},
+		{"Version", aboutVersion},
 		{"License", "Apache 2.0"},
 		{"Author", "SergioZ3R0"},
 		{"Repository", "github.com/SergioZ3R0/one9s"},

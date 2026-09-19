@@ -52,7 +52,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: '0'
         run: |
-          go build -o one9s${{ matrix.suffix }} ./cmd/one9s
+          VERSION=${GITHUB_REF_NAME#v}
+          go build -ldflags "-X main.Version=${VERSION}" -o one9s${{ matrix.suffix }} ./cmd/one9s
           zip "one9s-${{ matrix.goos }}-${{ matrix.goarch }}.zip" one9s${{ matrix.suffix }} LICENSE
           echo "ARTIFACT=one9s-${{ matrix.goos }}-${{ matrix.goarch }}.zip" >> $GITHUB_ENV
 
