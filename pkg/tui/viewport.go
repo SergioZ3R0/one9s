@@ -247,11 +247,24 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.vmList, _ = m.vmList.Update(msg)
-		m.hostList, _ = m.hostList.Update(msg)
-		m.dsList, _ = m.dsList.Update(msg)
-		m.aclList, _ = m.aclList.Update(msg)
-		m.qList, _ = m.qList.Update(msg)
+		// Clamp to safe minimums
+		if m.width < 20 {
+			m.width = 20
+		}
+		if m.height < 10 {
+			m.height = 10
+		}
+		cw := m.contentWidth()
+		panelW := cw - 4
+		if panelW < 20 {
+			panelW = 20
+		}
+		subMsg := tea.WindowSizeMsg{Width: panelW, Height: msg.Height}
+		m.vmList, _ = m.vmList.Update(subMsg)
+		m.hostList, _ = m.hostList.Update(subMsg)
+		m.dsList, _ = m.dsList.Update(subMsg)
+		m.aclList, _ = m.aclList.Update(subMsg)
+		m.qList, _ = m.qList.Update(subMsg)
 		return m, nil
 
 	case vmsFetchedMsg:
@@ -647,25 +660,32 @@ func (m rootModel) View() string {
 		return m.renderModalView()
 	}
 
-	// --- Header ---
-	line3 := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
+	// Safety guard: ensure dimensions are always valid
+	_, _, cw := m.layoutGuard()
 
-	left := appNameStyle.Render("one9s")
-	right := connectionStyle.Render("Connected • OpenNebula")
-	gap := max(0, m.width-lipgloss.Width(left)-lipgloss.Width(right)-2)
-	line1 := left + strings.Repeat(" ", gap) + right
+	// --- Header (2 lines: title+tabs, separator) ---
+	sep := separatorStyle.Render(strings.Repeat("─", max(0, cw)))
 
-	tabItems := []string{
+	title := appNameStyle.Render("one9s")
+	tabs := strings.Join([]string{
 		m.renderTab("1:VMs", m.currentView == viewVMs),
 		m.renderTab("2:Hosts", m.currentView == viewHosts),
 		m.renderTab("3:DS", m.currentView == viewDatastores),
 		m.renderTab("4:ACLs", m.currentView == viewACLs),
 		m.renderTab("5:Quotas", m.currentView == viewQuotas),
 		m.renderTab("?:Help", m.currentView == viewHelp),
-	}
-	line2 := strings.Join(tabItems, "")
+	}, "")
+	conn := connectionStyle.Render("Connected • OpenNebula")
 
-	header := lipgloss.JoinVertical(lipgloss.Left, line1, line3, line2, line3)
+	titleW := lipgloss.Width(title)
+	tabsW := lipgloss.Width(tabs)
+	connW := lipgloss.Width(conn)
+	gap := cw - titleW - tabsW - connW
+	if gap < 2 {
+		gap = 2
+	}
+	line1 := title + strings.Repeat(" ", gap) + tabs + strings.Repeat(" ", max(0, cw-titleW-gap-tabsW-connW)) + conn
+	header := lipgloss.JoinVertical(lipgloss.Left, line1, sep)
 
 	// --- Error bar ---
 	var errBar string
@@ -680,8 +700,15 @@ func (m rootModel) View() string {
 
 	// --- Split view: list left + detail right (VMs and Hosts) ---
 	if m.currentView == viewVMs || m.currentView == viewHosts {
-		listW := m.width/2 - 2
-		viewH := m.height - 7
+		// Each panel: border(2) + padding(2) = 4 overhead
+		// Two panels side by side: 8 overhead total
+		avail := cw - 8
+		if avail < 40 {
+			avail = 40
+		}
+		listW := avail / 2
+		detailW := avail - listW
+		viewH := m.height - 10
 		if viewH < 1 {
 			viewH = 1
 		}
@@ -700,15 +727,11 @@ func (m rootModel) View() string {
 			if i >= viewH {
 				break
 			}
-			if lipgloss.Width(line) > listW {
-				line = truncate(line, listW-1)
-			}
 			listVisible = append(listVisible, line)
 		}
-		leftPanel := panelStyle.Width(max(30, listW)).Render(strings.Join(listVisible, "\n"))
+		leftPanel := panelStyle.Render(strings.Join(listVisible, "\n"))
 
 		// Right: detail pane
-		detailW := m.width/2 - 2
 		var detailContent string
 		switch m.currentView {
 		case viewVMs:
@@ -730,21 +753,19 @@ func (m rootModel) View() string {
 			if i >= viewH {
 				break
 			}
-			if lipgloss.Width(line) > detailW {
-				line = truncate(line, detailW-1)
-			}
-			detailVisible = append(detailVisible, line)
+			detailVisible = append(detailVisible, clipLine(line, detailW))
 		}
-		rightPanel := panelStyle.Width(max(30, detailW)).Render(strings.Join(detailVisible, "\n"))
+		rightPanel := panelStyle.Render(strings.Join(detailVisible, "\n"))
 
 		split := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
 
-		footerSep := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
+		footerSep := separatorStyle.Render(strings.Repeat("─", max(0, cw)))
 		footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • enter:detail • /:filter • ? help • q quit")
 		footer := lipgloss.JoinVertical(lipgloss.Left, footerSep, footerText)
 
-		inner := lipgloss.JoinVertical(lipgloss.Left, header, errBar, split, footer)
-		return frameStyle.Render(inner)
+		lines := lipgloss.JoinVertical(lipgloss.Left, header, errBar, split, footer)
+		framed := frameStyle.Render(lines)
+		return lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, framed)
 	}
 
 	// --- Other tabs: single panel ---
@@ -762,8 +783,7 @@ func (m rootModel) View() string {
 		content = m.helpView()
 	}
 
-	panelW := m.width - 4
-	viewH := m.height - 7
+	viewH := m.height - 10
 	if viewH < 1 {
 		viewH = 1
 	}
@@ -773,23 +793,17 @@ func (m rootModel) View() string {
 		if i >= viewH {
 			break
 		}
-		maxW := panelW - 4
-		if maxW < 10 {
-			maxW = 10
-		}
-		if lipgloss.Width(line) > maxW {
-			line = truncate(line, maxW-1)
-		}
 		visible = append(visible, line)
 	}
 	panel := panelStyle.Render(strings.Join(visible, "\n"))
 
-	footerSep := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
+	footerSep := separatorStyle.Render(strings.Repeat("─", max(0, cw)))
 	footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • /:filter • ? help • q quit")
 	footer := lipgloss.JoinVertical(lipgloss.Left, footerSep, footerText)
 
 	inner := lipgloss.JoinVertical(lipgloss.Left, header, errBar, panel, footer)
-	return frameStyle.Render(inner)
+	framed := frameStyle.Render(inner)
+	return lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, framed)
 }
 
 func (m rootModel) renderModalView() string {
@@ -914,6 +928,103 @@ func (m rootModel) renderTab(label string, active bool) string {
 		return tabActive.Render(label)
 	}
 	return tabInactive.Render(label)
+}
+
+// contentWidth returns the available width for content inside the frame.
+// Frame border = 2 chars, frame padding = 2 chars (1 each side).
+func (m rootModel) contentWidth() int {
+	w := m.width - 4
+	if w < 1 {
+		w = 1
+	}
+	return w
+}
+
+// layoutGuard ensures all dimensions are safe and content never overflows.
+// Returns corrected width, height, and content width.
+// Call this at the start of every View() to prevent layout breakage.
+func (m rootModel) layoutGuard() (w, h, cw int) {
+	w = m.width
+	h = m.height
+	if w < 20 {
+		w = 20
+	}
+	if h < 10 {
+		h = 10
+	}
+	cw = w - 4
+	if cw < 1 {
+		cw = 1
+	}
+	return w, h, cw
+}
+
+// clipLine clips a line to maxW visible characters without adding ellipsis.
+// Preserves ANSI escape sequences by walking bytes.
+func clipLine(line string, maxW int) string {
+	if maxW < 1 {
+		return ""
+	}
+	if lipgloss.Width(line) <= maxW {
+		return line
+	}
+	var buf strings.Builder
+	visible := 0
+	inEscape := false
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if ch == '\x1b' {
+			inEscape = true
+			buf.WriteByte(ch)
+			continue
+		}
+		if inEscape {
+			buf.WriteByte(ch)
+			if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') {
+				inEscape = false
+			}
+			continue
+		}
+		if visible >= maxW {
+			break
+		}
+		buf.WriteByte(ch)
+		visible++
+	}
+	return buf.String()
+}
+
+// scrollLine skips the first skipW visible characters of a line (horizontal scroll).
+// Preserves ANSI escape sequences.
+func scrollLine(line string, skipW int) string {
+	if skipW <= 0 {
+		return line
+	}
+	var buf strings.Builder
+	visible := 0
+	inEscape := false
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if ch == '\x1b' {
+			inEscape = true
+			buf.WriteByte(ch)
+			continue
+		}
+		if inEscape {
+			buf.WriteByte(ch)
+			if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') {
+				inEscape = false
+			}
+			continue
+		}
+		if visible >= skipW {
+			buf.WriteByte(ch)
+			visible++
+			continue
+		}
+		visible++
+	}
+	return buf.String()
 }
 
 func humanizeError(action string, err error) error {

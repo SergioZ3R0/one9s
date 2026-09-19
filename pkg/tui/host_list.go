@@ -13,12 +13,13 @@ type hostListModel struct {
 	hosts       []hostRow
 	cursor      int
 	scroll      int
-	width       int
-	height      int
-	lines       []string
+	scrollX     int
 	filter      textinput.Model
 	filtering   bool
 	filterStr   string
+	width       int
+	height      int
+	lines       []string
 	filtered    []hostRow
 	filterDirty bool
 }
@@ -158,6 +159,12 @@ func (m hostListModel) Update(msg tea.Msg) (hostListModel, tea.Cmd) {
 			m.filtering = true
 			m.filter.Focus()
 			cmds = append(cmds, textinput.Blink)
+		case "left":
+			if m.scrollX > 0 {
+				m.scrollX--
+			}
+		case "right":
+			m.scrollX++
 		}
 	}
 	return m, tea.Batch(cmds...)
@@ -183,7 +190,10 @@ func (m *hostListModel) getFiltered() []hostRow {
 }
 
 func (m *hostListModel) viewHeight() int {
-	h := m.height - 7
+	h := m.height - 12
+	if m.filtering || m.filterStr != "" {
+		h--
+	}
 	if h < 1 {
 		h = 1
 	}
@@ -215,8 +225,9 @@ func (m *hostListModel) rebuildLines() {
 	if m.cursor >= m.scroll+viewH {
 		m.scroll = m.cursor - viewH + 1
 	}
-	if m.scroll > 0 && m.scroll+viewH > len(m.lines) {
-		m.scroll = max(0, len(m.lines)-viewH)
+	maxScroll := max(0, len(m.getFiltered())-viewH)
+	if m.scroll > maxScroll {
+		m.scroll = maxScroll
 	}
 }
 
@@ -228,10 +239,20 @@ func (m hostListModel) View() string {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc]")
 	}
 
+	// Sticky header: first line is always the table header
+	if len(m.lines) > 0 {
+		parts = append(parts, clipLine(scrollLine(m.lines[0], m.scrollX), m.width))
+	}
 	viewH := m.viewHeight()
-	end := min(m.scroll+viewH, len(m.lines))
-	visible := m.lines[m.scroll:end]
-	parts = append(parts, strings.Join(visible, "\n"))
+	// Content rows from scroll offset
+	start := m.scroll + 1
+	end := min(start+viewH, len(m.lines))
+	if start < len(m.lines) {
+		visible := m.lines[start:end]
+		for _, line := range visible {
+			parts = append(parts, clipLine(scrollLine(line, m.scrollX), m.width))
+		}
+	}
 
 	filtered := m.getFiltered()
 	status := statusStyle.Render(fmt.Sprintf(" %d/%d Hosts  cursor:%d/%d", len(filtered), len(m.hosts), m.cursor, max(0, len(filtered)-1)))

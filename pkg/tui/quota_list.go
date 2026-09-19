@@ -13,6 +13,7 @@ type quotaListModel struct {
 	quotas      []quotaRow
 	cursor      int
 	scroll      int
+	scrollX     int
 	width       int
 	height      int
 	lines       []string
@@ -176,6 +177,15 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 			m.filtering = true
 			m.filter.Focus()
 			cmds = append(cmds, textinput.Blink)
+		case "left":
+			if m.scrollX > 0 {
+				m.scrollX--
+				if m.scrollX < 0 {
+					m.scrollX = 0
+				}
+			}
+		case "right":
+			m.scrollX++
 		}
 	}
 	return m, tea.Batch(cmds...)
@@ -201,7 +211,10 @@ func (m *quotaListModel) getFiltered() []quotaRow {
 }
 
 func (m *quotaListModel) viewHeight() int {
-	h := m.height - 7
+	h := m.height - 12
+	if m.filtering || m.filterStr != "" {
+		h--
+	}
 	if h < 1 {
 		h = 1
 	}
@@ -211,9 +224,9 @@ func (m *quotaListModel) viewHeight() int {
 func (m *quotaListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.getFiltered())+1)
 
-	w := m.width - 8
-	if w < 60 {
-		w = 60
+	w := m.width - 4
+	if w < 30 {
+		w = 30
 	}
 	eW := min(20, w/7)
 	vW := min(10, w/10)
@@ -228,7 +241,7 @@ func (m *quotaListModel) rebuildLines() {
 	))
 	for i, q := range m.getFiltered() {
 		row := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
-			eW, truncate(q.Entity, eW-1), vW, q.VMs, cW, q.CPU, mW, q.Memory,
+			eW, q.Entity, vW, q.VMs, cW, q.CPU, mW, q.Memory,
 			rW, q.RunningVMs, iW, q.Images, q.Leases)
 		if i == m.cursor {
 			m.lines = append(m.lines, cursorStyle.Render(row))
@@ -237,8 +250,9 @@ func (m *quotaListModel) rebuildLines() {
 		}
 	}
 	viewH := m.viewHeight()
-	if m.cursor >= len(m.getFiltered()) {
-		m.cursor = max(0, len(m.getFiltered())-1)
+	filtered := m.getFiltered()
+	if m.cursor >= len(filtered) {
+		m.cursor = max(0, len(filtered)-1)
 	}
 	if m.cursor < m.scroll {
 		m.scroll = m.cursor
@@ -246,8 +260,9 @@ func (m *quotaListModel) rebuildLines() {
 	if m.cursor >= m.scroll+viewH {
 		m.scroll = m.cursor - viewH + 1
 	}
-	if m.scroll > 0 && m.scroll+viewH > len(m.lines) {
-		m.scroll = max(0, len(m.lines)-viewH)
+	maxScroll := max(0, len(filtered)-viewH)
+	if m.scroll > maxScroll {
+		m.scroll = maxScroll
 	}
 }
 
@@ -258,10 +273,20 @@ func (m quotaListModel) View() string {
 	} else if m.filterStr != "" {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc]")
 	}
+	// Sticky header: first line is always the table header
+	if len(m.lines) > 0 {
+		parts = append(parts, clipLine(scrollLine(m.lines[0], m.scrollX), m.width))
+	}
 	viewH := m.viewHeight()
-	end := min(m.scroll+viewH, len(m.lines))
-	visible := m.lines[m.scroll:end]
-	parts = append(parts, strings.Join(visible, "\n"))
+	// Content rows from scroll offset
+	start := m.scroll + 1
+	end := min(start+viewH, len(m.lines))
+	if start < len(m.lines) {
+		visible := m.lines[start:end]
+		for _, line := range visible {
+			parts = append(parts, clipLine(scrollLine(line, m.scrollX), m.width))
+		}
+	}
 	filtered := m.getFiltered()
 	status := statusStyle.Render(fmt.Sprintf(" %d/%d User Quotas  cursor:%d/%d", len(filtered), len(m.quotas), m.cursor, max(0, len(filtered)-1)))
 	parts = append(parts, status)

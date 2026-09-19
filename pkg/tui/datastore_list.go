@@ -13,6 +13,7 @@ type dsListModel struct {
 	datastores  []dsRow
 	cursor      int
 	scroll      int
+	scrollX     int
 	width       int
 	height      int
 	lines       []string
@@ -156,6 +157,12 @@ func (m dsListModel) Update(msg tea.Msg) (dsListModel, tea.Cmd) {
 			m.filtering = true
 			m.filter.Focus()
 			cmds = append(cmds, textinput.Blink)
+		case "left":
+			if m.scrollX > 0 {
+				m.scrollX--
+			}
+		case "right":
+			m.scrollX++
 		}
 	}
 	return m, tea.Batch(cmds...)
@@ -181,7 +188,10 @@ func (m *dsListModel) getFiltered() []dsRow {
 }
 
 func (m *dsListModel) viewHeight() int {
-	h := m.height - 7
+	h := m.height - 12
+	if m.filtering || m.filterStr != "" {
+		h--
+	}
 	if h < 1 {
 		h = 1
 	}
@@ -213,8 +223,9 @@ func (m *dsListModel) rebuildLines() {
 	if m.cursor >= m.scroll+viewH {
 		m.scroll = m.cursor - viewH + 1
 	}
-	if m.scroll > 0 && m.scroll+viewH > len(m.lines) {
-		m.scroll = max(0, len(m.lines)-viewH)
+	maxScroll := max(0, len(m.getFiltered())-viewH)
+	if m.scroll > maxScroll {
+		m.scroll = maxScroll
 	}
 }
 
@@ -225,10 +236,20 @@ func (m dsListModel) View() string {
 	} else if m.filterStr != "" {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc]")
 	}
+	// Sticky header: first line is always the table header
+	if len(m.lines) > 0 {
+		parts = append(parts, clipLine(scrollLine(m.lines[0], m.scrollX), m.width))
+	}
 	viewH := m.viewHeight()
-	end := min(m.scroll+viewH, len(m.lines))
-	visible := m.lines[m.scroll:end]
-	parts = append(parts, strings.Join(visible, "\n"))
+	// Content rows from scroll offset
+	start := m.scroll + 1
+	end := min(start+viewH, len(m.lines))
+	if start < len(m.lines) {
+		visible := m.lines[start:end]
+		for _, line := range visible {
+			parts = append(parts, clipLine(scrollLine(line, m.scrollX), m.width))
+		}
+	}
 	filtered := m.getFiltered()
 	status := statusStyle.Render(fmt.Sprintf(" %d/%d Datastores  cursor:%d/%d", len(filtered), len(m.datastores), m.cursor, max(0, len(filtered)-1)))
 	parts = append(parts, status)

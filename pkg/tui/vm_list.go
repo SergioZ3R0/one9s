@@ -15,6 +15,7 @@ type vmListModel struct {
 	vms         []VMRow
 	cursor      int
 	scroll      int
+	scrollX     int
 	filter      textinput.Model
 	filtering   bool
 	filterStr   string
@@ -203,6 +204,12 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 			return m, nil
 		case "c":
 			return m, m.sshToVM()
+		case "left":
+			if m.scrollX > 0 {
+				m.scrollX--
+			}
+		case "right":
+			m.scrollX++
 		}
 	}
 
@@ -210,7 +217,10 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 }
 
 func (m *vmListModel) viewHeight() int {
-	h := m.height - 9
+	h := m.height - 12
+	if m.filtering || m.filterStr != "" {
+		h--
+	}
 	if h < 1 {
 		h = 1
 	}
@@ -299,8 +309,9 @@ func (m *vmListModel) rebuildLines() {
 	if m.cursor >= m.scroll+viewH {
 		m.scroll = m.cursor - viewH + 1
 	}
-	if m.scroll > 0 && m.scroll+viewH > len(m.lines) {
-		m.scroll = max(0, len(m.lines)-viewH)
+	maxScroll := max(0, len(filtered)-viewH)
+	if m.scroll > maxScroll {
+		m.scroll = maxScroll
 	}
 }
 
@@ -376,10 +387,20 @@ func (m vmListModel) View() string {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc]")
 	}
 
+	// Sticky header: first line is always the table header
+	if len(m.lines) > 0 {
+		parts = append(parts, clipLine(scrollLine(m.lines[0], m.scrollX), m.width))
+	}
 	viewH := m.viewHeight()
-	end := min(m.scroll+viewH, len(m.lines))
-	visible := m.lines[m.scroll:end]
-	parts = append(parts, strings.Join(visible, "\n"))
+	// Content rows from scroll offset
+	start := m.scroll + 1
+	end := min(start+viewH, len(m.lines))
+	if start < len(m.lines) {
+		visible := m.lines[start:end]
+		for _, line := range visible {
+			parts = append(parts, clipLine(scrollLine(line, m.scrollX), m.width))
+		}
+	}
 
 	filtered := m.getFiltered()
 	stateLbl := stateFilterLabel(m.stateFilter)
