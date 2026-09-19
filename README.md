@@ -20,12 +20,13 @@ to the OpenNebula XML-RPC API.
 
 ## Features
 
-- **VM Management** — monitor all VMs with state, CPU, memory, IP, host. Filter by state (active, stopped, poweroff, error) or fuzzy text search.
+- **VM Management** — monitor all VMs with state, CPU, memory, IP, host. Split view with detail pane showing full VM info.
 - **VM Lifecycle** — reboot, stop, resume, suspend, terminate directly from the terminal with confirmation modals.
-- **Host Management** — enable, disable, offline, delete, rename hosts with confirmation.
+- **Host Management** — enable, disable, offline, delete, rename hosts. Detail view with CPU/Memory progress bars.
 - **Datastore Monitoring** — view storage pools with type, total capacity, used and free space.
 - **ACL Rules** — view and decode access control rules (user, resource, rights, zone) from hex to human-readable.
 - **User Quotas** — view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
+- **Fuzzy Search** — `/` key for instant filtering on all tabs.
 - **Vault Encryption** — credentials encrypted with AES-256-GCM, safe from third-party access.
 - **Cross-platform** — single binary for Linux, macOS, Windows (amd64/arm64).
 
@@ -95,6 +96,7 @@ Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
 | `↑/↓` / `j/k` | Navigate rows |
 | `PgUp/PgDn` / `b/f` | Page up / page down |
 | `g/G` | Go to start / end |
+| `enter` | View details (VMs/Hosts split view) |
 | `/` | Fuzzy search |
 | `F5` | Refresh current view |
 | `?` | Help |

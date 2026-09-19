@@ -4,17 +4,23 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type quotaListModel struct {
-	quotas []quotaRow
-	cursor int
-	scroll int
-	width  int
-	height int
-	lines  []string
+	quotas      []quotaRow
+	cursor      int
+	scroll      int
+	width       int
+	height      int
+	lines       []string
+	filter      textinput.Model
+	filtering   bool
+	filterStr   string
+	filtered    []quotaRow
+	filterDirty bool
 }
 
 type quotaRow struct {
@@ -37,12 +43,20 @@ type quotaRow struct {
 }
 
 func newQuotaListModel() quotaListModel {
-	return quotaListModel{}
+	ti := textinput.New()
+	ti.Placeholder = "filter quotas..."
+	ti.CharLimit = 64
+	return quotaListModel{
+		filter:      ti,
+		filterDirty: true,
+	}
 }
 
 func (m quotaListModel) Init() tea.Cmd { return nil }
 
 func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -76,40 +90,71 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 		}
 		m.cursor = 0
 		m.scroll = 0
+		m.filterDirty = true
 		m.rebuildLines()
 		return m, nil
 
 	case tea.KeyMsg:
+		k := msg.String()
+
+		if m.filtering {
+			switch k {
+			case "enter":
+				m.filtering = false
+				m.filterStr = m.filter.Value()
+				m.filter.Blur()
+				m.filterDirty = true
+				m.cursor = 0
+				m.scroll = 0
+				m.rebuildLines()
+				return m, nil
+			case "esc":
+				m.filtering = false
+				m.filter.Blur()
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.filter, cmd = m.filter.Update(msg)
+			cmds = append(cmds, cmd)
+			m.filterStr = m.filter.Value()
+			m.filterDirty = true
+			m.cursor = 0
+			m.scroll = 0
+			m.rebuildLines()
+			return m, tea.Batch(cmds...)
+		}
+
 		viewH := m.viewHeight()
-		maxC := len(m.quotas) - 1
+		maxC := len(m.getFiltered()) - 1
 		if maxC < 0 {
 			maxC = 0
 		}
-		switch msg.String() {
+
+		switch k {
 		case "down", "j":
 			if m.cursor < maxC {
 				m.cursor++
+				if m.cursor >= m.scroll+viewH {
+					m.scroll = m.cursor - viewH + 1
+				}
+				if m.cursor < m.scroll {
+					m.scroll = m.cursor
+				}
+				m.rebuildLines()
+				return m, nil
 			}
-			if m.cursor >= m.scroll+viewH {
-				m.scroll = m.cursor - viewH + 1
-			}
-			if m.cursor < m.scroll {
-				m.scroll = m.cursor
-			}
-			m.rebuildLines()
-			return m, nil
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
+				if m.cursor < m.scroll {
+					m.scroll = m.cursor
+				}
+				m.rebuildLines()
+				return m, nil
 			}
-			if m.cursor < m.scroll {
-				m.scroll = m.cursor
-			}
-			m.rebuildLines()
-			return m, nil
 		case "pgdown", "f":
 			m.cursor = min(m.cursor+viewH, maxC)
-			m.scroll = min(m.scroll+viewH, max(0, len(m.quotas)-viewH))
+			m.scroll = min(m.scroll+viewH, max(0, len(m.getFiltered())-viewH))
 			m.rebuildLines()
 			return m, nil
 		case "pgup", "b":
@@ -127,13 +172,36 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 			m.scroll = max(0, m.cursor-viewH+1)
 			m.rebuildLines()
 			return m, nil
+		case "/":
+			m.filtering = true
+			m.filter.Focus()
+			cmds = append(cmds, textinput.Blink)
 		}
 	}
-	return m, nil
+	return m, tea.Batch(cmds...)
+}
+
+func (m *quotaListModel) getFiltered() []quotaRow {
+	if m.filterDirty {
+		if m.filterStr == "" {
+			m.filtered = m.quotas
+		} else {
+			needle := strings.ToLower(m.filterStr)
+			m.filtered = make([]quotaRow, 0)
+			for _, q := range m.quotas {
+				haystack := strings.ToLower(q.Entity + " " + q.VMs + " " + q.CPU + " " + q.Memory)
+				if strings.Contains(haystack, needle) {
+					m.filtered = append(m.filtered, q)
+				}
+			}
+		}
+		m.filterDirty = false
+	}
+	return m.filtered
 }
 
 func (m *quotaListModel) viewHeight() int {
-	h := m.height - 9
+	h := m.height - 7
 	if h < 1 {
 		h = 1
 	}
@@ -141,9 +209,8 @@ func (m *quotaListModel) viewHeight() int {
 }
 
 func (m *quotaListModel) rebuildLines() {
-	m.lines = make([]string, 0, len(m.quotas)+1)
+	m.lines = make([]string, 0, len(m.getFiltered())+1)
 
-	// Dynamic column widths based on terminal width
 	w := m.width - 8
 	if w < 60 {
 		w = 60
@@ -154,16 +221,15 @@ func (m *quotaListModel) rebuildLines() {
 	mW := min(14, w/7)
 	rW := min(10, w/10)
 	iW := min(8, w/12)
-	sW := min(10, w/10)
 
 	m.lines = append(m.lines, tableHeader.Render(
-		fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %-*s %s",
-			eW, "ENTITY", vW, "VMs", cW, "CPU", mW, "MEMORY", rW, "RUN", iW, "IMG", sW, "SIZE", "LEASES"),
+		fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
+			eW, "ENTITY", vW, "VMs", cW, "CPU", mW, "MEMORY", rW, "RUN", iW, "IMG", "LEASES"),
 	))
-	for i, q := range m.quotas {
-		row := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %-*s %s",
+	for i, q := range m.getFiltered() {
+		row := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
 			eW, truncate(q.Entity, eW-1), vW, q.VMs, cW, q.CPU, mW, q.Memory,
-			rW, q.RunningVMs, iW, q.Images, sW, q.Size, q.Leases)
+			rW, q.RunningVMs, iW, q.Images, q.Leases)
 		if i == m.cursor {
 			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
@@ -171,8 +237,8 @@ func (m *quotaListModel) rebuildLines() {
 		}
 	}
 	viewH := m.viewHeight()
-	if m.cursor >= len(m.quotas) {
-		m.cursor = max(0, len(m.quotas)-1)
+	if m.cursor >= len(m.getFiltered()) {
+		m.cursor = max(0, len(m.getFiltered())-1)
 	}
 	if m.cursor < m.scroll {
 		m.scroll = m.cursor
@@ -186,9 +252,18 @@ func (m *quotaListModel) rebuildLines() {
 }
 
 func (m quotaListModel) View() string {
+	var parts []string
+	if m.filtering {
+		parts = append(parts, filterStyle.Render("Filter: ")+m.filter.View())
+	} else if m.filterStr != "" {
+		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc]")
+	}
 	viewH := m.viewHeight()
 	end := min(m.scroll+viewH, len(m.lines))
 	visible := m.lines[m.scroll:end]
-	status := statusStyle.Render(fmt.Sprintf(" %d User Quotas  cursor:%d/%d", len(m.quotas), m.cursor, max(0, len(m.quotas)-1)))
-	return lipgloss.JoinVertical(lipgloss.Left, strings.Join(visible, "\n"), status)
+	parts = append(parts, strings.Join(visible, "\n"))
+	filtered := m.getFiltered()
+	status := statusStyle.Render(fmt.Sprintf(" %d/%d User Quotas  cursor:%d/%d", len(filtered), len(m.quotas), m.cursor, max(0, len(filtered)-1)))
+	parts = append(parts, status)
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }

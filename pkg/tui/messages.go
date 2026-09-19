@@ -33,6 +33,10 @@ type vmDetailFetchedMsg struct {
 	vm client.VMDetail
 }
 
+type hostDetailFetchedMsg struct {
+	host client.HostDetail
+}
+
 // --- Host actions ---
 
 type hostActionResultMsg struct {

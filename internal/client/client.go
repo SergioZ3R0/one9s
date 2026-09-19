@@ -89,6 +89,23 @@ type VMDetail struct {
 	EndTime   string
 }
 
+type HostDetail struct {
+	ID          int
+	Name        string
+	State       string
+	IMMAD       string
+	VMMAD       string
+	ClusterID   int
+	ClusterName string
+	CPU         string
+	Memory      string
+	RunningVMs  int
+	TotalCPU    int
+	TotalMem    int
+	ShareCPU    int
+	ShareMem    int
+}
+
 type Client interface {
 	ListVMs(ctx context.Context) ([]VMInfo, error)
 	ListHosts(ctx context.Context) ([]HostInfo, error)
@@ -103,6 +120,7 @@ type Client interface {
 	QuotaUpdate(ctx context.Context, userID int, tpl string) error
 	GetVMInfo(ctx context.Context, id int) (*VMInfo, error)
 	GetVMDetailInfo(ctx context.Context, id int) (VMDetail, error)
+	GetHostDetailInfo(ctx context.Context, id int) (HostDetail, error)
 	GetHostIDByName(ctx context.Context, name string) (int, error)
 }
 

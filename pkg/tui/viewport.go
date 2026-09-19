@@ -39,7 +39,8 @@ type rootModel struct {
 	qList    quotaListModel
 
 	currentView viewName
-	vmDetail    *client.VMDetail // nil when showing list
+	vmDetail    *client.VMDetail
+	hostDetail  *client.HostDetail
 	modal       modalState
 	fetching    bool
 	lastKey     string
@@ -268,6 +269,9 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case vmDetailFetchedMsg:
 		m.vmDetail = &msg.vm
 
+	case hostDetailFetchedMsg:
+		m.hostDetail = &msg.host
+
 	case quotasFetchedMsg:
 		m.fetching = false
 		m.qList, _ = m.qList.Update(msg)
@@ -342,7 +346,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// VM tab: enter to show detail
-		if m.currentView == viewVMs && m.vmDetail == nil && k == "enter" {
+		if m.currentView == viewVMs && k == "enter" {
 			vmID := m.getSelectedVMID()
 			if vmID >= 0 {
 				cmds = append(cmds, m.fetchVMDetail(vmID))
@@ -353,6 +357,21 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// VM detail: esc to go back
 		if m.vmDetail != nil && k == "esc" {
 			m.vmDetail = nil
+			return m, nil
+		}
+
+		// Host tab: enter to show detail
+		if m.currentView == viewHosts && k == "enter" {
+			hostID := m.getSelectedHostID()
+			if hostID >= 0 {
+				cmds = append(cmds, m.fetchHostDetail(hostID))
+				return m, tea.Batch(cmds...)
+			}
+		}
+
+		// Host detail: esc to go back
+		if m.hostDetail != nil && k == "esc" {
+			m.hostDetail = nil
 			return m, nil
 		}
 
@@ -498,6 +517,7 @@ func (m *rootModel) cycleView(dir int) {
 		if v == m.currentView {
 			m.currentView = allViews[(i+dir+len(allViews))%len(allViews)]
 			m.vmDetail = nil
+			m.hostDetail = nil
 			return
 		}
 	}
@@ -599,6 +619,16 @@ func (m rootModel) fetchVMDetail(id int) tea.Cmd {
 	}
 }
 
+func (m rootModel) fetchHostDetail(id int) tea.Cmd {
+	return func() tea.Msg {
+		host, err := m.client.GetHostDetailInfo(m.ctx, id)
+		if err != nil {
+			return errorMsg{err: err}
+		}
+		return hostDetailFetchedMsg{host: host}
+	}
+}
+
 func (m rootModel) executeHostAction(id int, action string) tea.Cmd {
 	return func() tea.Msg {
 		var err error
@@ -648,16 +678,22 @@ func (m rootModel) View() string {
 		}
 	}
 
-	// --- VMs tab: split view (list + detail) ---
-	if m.currentView == viewVMs {
+	// --- Split view: list left + detail right (VMs and Hosts) ---
+	if m.currentView == viewVMs || m.currentView == viewHosts {
 		listW := m.width/2 - 2
 		viewH := m.height - 7
 		if viewH < 1 {
 			viewH = 1
 		}
 
-		// Left: VM list
-		listContent := m.vmList.View()
+		// Left: list
+		var listContent string
+		switch m.currentView {
+		case viewVMs:
+			listContent = m.vmList.View()
+		case viewHosts:
+			listContent = m.hostList.View()
+		}
 		listLines := strings.Split(listContent, "\n")
 		var listVisible []string
 		for i, line := range listLines {
@@ -674,10 +710,18 @@ func (m rootModel) View() string {
 		// Right: detail pane
 		detailW := m.width/2 - 2
 		var detailContent string
-		if m.vmDetail != nil {
-			detailContent = vmDetailView(*m.vmDetail)
-		} else {
-			detailContent = filterStyle.Render("Select a VM") + statusStyle.Render("\n\nPress enter on a VM\nto view details")
+		if m.currentView == viewVMs {
+			if m.vmDetail != nil {
+				detailContent = vmDetailView(*m.vmDetail)
+			} else {
+				detailContent = filterStyle.Render("Select a VM") + statusStyle.Render("\n\nPress enter on a VM\nto view details")
+			}
+		} else if m.currentView == viewHosts {
+			if m.hostDetail != nil {
+				detailContent = hostDetailView(*m.hostDetail)
+			} else {
+				detailContent = filterStyle.Render("Select a Host") + statusStyle.Render("\n\nPress enter on a host\nto view details")
+			}
 		}
 		detailLines := strings.Split(detailContent, "\n")
 		var detailVisible []string

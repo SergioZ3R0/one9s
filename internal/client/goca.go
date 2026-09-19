@@ -209,6 +209,39 @@ func (g *GOCAClient) GetHostIDByName(ctx context.Context, name string) (int, err
 	return g.controller.Hosts().ByNameContext(ctx, name)
 }
 
+func (g *GOCAClient) GetHostDetailInfo(ctx context.Context, id int) (HostDetail, error) {
+	h, err := g.controller.Host(id).InfoContext(ctx, false)
+	if err != nil {
+		return HostDetail{}, fmt.Errorf("host.info: %w", err)
+	}
+
+	cpuPct := 0.0
+	if h.Share.TotalCPU > 0 {
+		cpuPct = float64(h.Share.CPUUsage) / float64(h.Share.TotalCPU) * 100
+	}
+	memPct := 0.0
+	if h.Share.TotalMem > 0 {
+		memPct = float64(h.Share.MemUsage) / float64(h.Share.TotalMem) * 100
+	}
+
+	return HostDetail{
+		ID:          h.ID,
+		Name:        h.Name,
+		State:       MapHostState(h.StateRaw),
+		IMMAD:       h.IMMAD,
+		VMMAD:       h.VMMAD,
+		ClusterID:   h.ClusterID,
+		ClusterName: h.Cluster,
+		CPU:         fmt.Sprintf("%.0f%%", cpuPct),
+		Memory:      fmt.Sprintf("%.0f%%", memPct),
+		RunningVMs:  h.Share.RunningVMs,
+		TotalCPU:    h.Share.TotalCPU,
+		TotalMem:    h.Share.TotalMem,
+		ShareCPU:    h.Share.CPUUsage,
+		ShareMem:    h.Share.MemUsage,
+	}, nil
+}
+
 func (g *GOCAClient) GetVMInfo(ctx context.Context, id int) (*VMInfo, error) {
 	vm, err := g.controller.VM(id).InfoContext(ctx, false)
 	if err != nil {
