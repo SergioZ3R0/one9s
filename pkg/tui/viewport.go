@@ -269,6 +269,8 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.vmDetail = &msg.vm
 
 	case quotasFetchedMsg:
+		m.fetching = false
+		m.qList, _ = m.qList.Update(msg)
 
 	case vmActionMsg:
 		return m, m.executeVMAction(msg.id, msg.action)
