@@ -133,7 +133,7 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 }
 
 func (m *quotaListModel) viewHeight() int {
-	h := m.height - 3
+	h := m.height - 9
 	if h < 1 {
 		h = 1
 	}
@@ -142,18 +142,32 @@ func (m *quotaListModel) viewHeight() int {
 
 func (m *quotaListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.quotas)+1)
+
+	// Dynamic column widths based on terminal width
+	w := m.width - 8
+	if w < 60 {
+		w = 60
+	}
+	eW := min(20, w/7)
+	vW := min(10, w/10)
+	cW := min(12, w/8)
+	mW := min(14, w/7)
+	rW := min(10, w/10)
+	iW := min(8, w/12)
+	sW := min(10, w/10)
+
 	m.lines = append(m.lines, tableHeader.Render(
-		fmt.Sprintf("  %-20s %-12s %-16s %-16s %-14s %-12s %-14s %-12s",
-			"ENTITY", "VMs", "CPU", "MEMORY", "RUNNING", "IMAGES", "SIZE", "LEASES"),
+		fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %-*s %s",
+			eW, "ENTITY", vW, "VMs", cW, "CPU", mW, "MEMORY", rW, "RUN", iW, "IMG", sW, "SIZE", "LEASES"),
 	))
 	for i, q := range m.quotas {
-		row := fmt.Sprintf("%-20s %-12s %-16s %-16s %-14s %-12s %-14s %-12s",
-			truncate(q.Entity, 19), q.VMs, q.CPU, q.Memory,
-			q.RunningVMs, q.Images, q.Size, q.Leases)
+		row := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %-*s %s",
+			eW, truncate(q.Entity, eW-1), vW, q.VMs, cW, q.CPU, mW, q.Memory,
+			rW, q.RunningVMs, iW, q.Images, sW, q.Size, q.Leases)
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
+			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
-			m.lines = append(m.lines, "  "+row)
+			m.lines = append(m.lines, row)
 		}
 	}
 	viewH := m.viewHeight()

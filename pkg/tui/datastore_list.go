@@ -113,7 +113,7 @@ func (m dsListModel) Update(msg tea.Msg) (dsListModel, tea.Cmd) {
 }
 
 func (m *dsListModel) viewHeight() int {
-	h := m.height - 3
+	h := m.height - 9
 	if h < 1 {
 		h = 1
 	}
@@ -130,9 +130,9 @@ func (m *dsListModel) rebuildLines() {
 		row := fmt.Sprintf("%-6s %-24s %-10s %-12s %-12s %-12s",
 			d.ID, truncate(d.Name, 23), d.Type, d.Total, d.Used, d.Free)
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
+			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
-			m.lines = append(m.lines, "  "+row)
+			m.lines = append(m.lines, row)
 		}
 	}
 	viewH := m.viewHeight()

@@ -210,7 +210,7 @@ func (m vmListModel) Update(msg tea.Msg) (vmListModel, tea.Cmd) {
 }
 
 func (m *vmListModel) viewHeight() int {
-	h := m.height - 4
+	h := m.height - 9
 	if h < 1 {
 		h = 1
 	}
@@ -283,9 +283,9 @@ func (m *vmListModel) rebuildLines() {
 			truncate(v.User, 11), v.CPU, v.Memory,
 			truncate(v.IP, 15), truncate(v.Host, 15))
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
+			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
-			m.lines = append(m.lines, "  "+stateStyle(v.State).Render(row))
+			m.lines = append(m.lines, stateStyle(v.State).Render(row))
 		}
 	}
 
@@ -391,6 +391,9 @@ func (m vmListModel) View() string {
 }
 
 func truncate(s string, max int) string {
+	if max < 2 {
+		return s
+	}
 	if len(s) <= max {
 		return s
 	}

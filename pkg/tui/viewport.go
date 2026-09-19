@@ -22,6 +22,7 @@ const (
 	viewACLs       viewName = "acls"
 	viewQuotas     viewName = "quotas"
 	viewHelp       viewName = "help"
+	viewAbout      viewName = "about"
 )
 
 var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewACLs, viewQuotas, viewHelp}
@@ -125,7 +126,6 @@ func (m rootModel) fetchQuotas() tea.Cmd {
 func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	// Modal intercepts ALL keys
 	if m.modal.active {
 		switch m.modal.modalType {
 		case modalYN:
@@ -152,12 +152,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					input := m.modal.input.Value()
 					m.modal.active = false
 					if m.modal.expecting == "" {
-						// For rename: accept any non-empty input
 						if input == "" {
 							m.err = fmt.Errorf("input cannot be empty")
 							return m, nil
 						}
-						// Capture input value NOW and create cmd inline
 						hostID := m.getSelectedHostID()
 						newName := input
 						return m, func() tea.Msg {
@@ -165,7 +163,6 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							return hostActionResultMsg{hostID: hostID, action: "rename", err: err}
 						}
 					}
-					// For delete: exact match required
 					if input == m.modal.expecting {
 						hostID := m.getSelectedHostID()
 						return m, func() tea.Msg {
@@ -234,6 +231,13 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, tea.Batch(cmds...)
+
+		case modalInfo:
+			if _, ok := msg.(tea.KeyMsg); ok {
+				m.modal.active = false
+				return m, nil
+			}
+			return m, nil
 		}
 	}
 
@@ -324,7 +328,12 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.modal.active {
 				return m, nil
 			}
-			m.modal = newModal("about", aboutView(), nil)
+			m.modal = modalState{
+				active:    true,
+				modalType: modalInfo,
+				title:     "about",
+				message:   aboutView(),
+			}
 			return m, nil
 		}
 
@@ -376,7 +385,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.modal = newTextInputModal(
 					"Rename Host",
 					fmt.Sprintf("Enter new name for '%s':", hostName),
-					"", // any non-empty input accepted
+					"",
 					func() tea.Msg {
 						newName := m.modal.input.Value()
 						err := m.client.HostRename(m.ctx, hostID, newName)
@@ -413,7 +422,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fields[5].key = "size"
 			fields[6].label = "Leases"
 			fields[6].key = "leases"
-			// Pre-populate with current limits (0 = unlimited)
+
 			fields[0].input.SetValue(fmt.Sprintf("%d", q.VMsLimit))
 			fields[1].input.SetValue(fmt.Sprintf("%d", q.CPULimit))
 			fields[2].input.SetValue(fmt.Sprintf("%d", q.MemoryLimit))
@@ -521,7 +530,6 @@ func (m *rootModel) getSelectedQuota() client.QuotaInfo {
 
 func buildQuotaTemplate(values map[string]string) string {
 	var vmParts []string
-
 	if v := parseQuotaVal(values["vms"]); v != -1 {
 		vmParts = append(vmParts, fmt.Sprintf("VMS = %d", v))
 	}
@@ -539,14 +547,13 @@ func buildQuotaTemplate(values map[string]string) string {
 	if len(vmParts) > 0 {
 		parts = append(parts, fmt.Sprintf("VM = [\n  %s\n]", strings.Join(vmParts, ",\n  ")))
 	}
-
 	return strings.Join(parts, "\n")
 }
 
 func parseQuotaVal(s string) int {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return -2 // unlimited
+		return -2
 	}
 	v, err := strconv.Atoi(s)
 	if err != nil {
@@ -576,12 +583,20 @@ func (m rootModel) executeHostAction(id int, action string) tea.Cmd {
 }
 
 func (m rootModel) View() string {
-	// If modal is active, show it as the main content (centered)
 	if m.modal.active {
 		return m.renderModalView()
 	}
 
-	tabs := []string{
+	// Simple layout: header + panel + footer, no outer frame
+	line3 := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
+
+	// --- Header ---
+	left := appNameStyle.Render("one9s")
+	right := connectionStyle.Render("Connected • OpenNebula")
+	gap := max(0, m.width-lipgloss.Width(left)-lipgloss.Width(right)-2)
+	line1 := left + strings.Repeat(" ", gap) + right
+
+	tabItems := []string{
 		m.renderTab("1:VMs", m.currentView == viewVMs),
 		m.renderTab("2:Hosts", m.currentView == viewHosts),
 		m.renderTab("3:DS", m.currentView == viewDatastores),
@@ -589,14 +604,11 @@ func (m rootModel) View() string {
 		m.renderTab("5:Quotas", m.currentView == viewQuotas),
 		m.renderTab("?:Help", m.currentView == viewHelp),
 	}
-	header := headerStyle.Width(m.width).Render(
-		lipgloss.JoinHorizontal(lipgloss.Top,
-			titleStyle.Render(" one9s "),
-			" ",
-			strings.Join(tabs, " "),
-		),
-	)
+	line2 := strings.Join(tabItems, "")
 
+	header := lipgloss.JoinVertical(lipgloss.Left, line1, line3, line2, line3)
+
+	// --- Error bar ---
 	var errBar string
 	if m.err != nil {
 		msg := m.err.Error()
@@ -607,6 +619,7 @@ func (m rootModel) View() string {
 		}
 	}
 
+	// --- Content ---
 	var content string
 	switch m.currentView {
 	case viewVMs:
@@ -623,46 +636,85 @@ func (m rootModel) View() string {
 		content = m.helpView()
 	}
 
-	status := statusStyle.Render(fmt.Sprintf(" q:quit tab:switch Ctrl+R:refresh /:filter ?:help  [last: %s]", m.lastKey))
+	// --- Panel ---
+	// Panel width = terminal width minus outer frame (4 chars)
+	panelW := m.width - 4
+	viewH := m.height - 7
+	if viewH < 1 {
+		viewH = 1
+	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, header, errBar, content, status)
+	lines := strings.Split(content, "\n")
+	var visible []string
+	for i, line := range lines {
+		if i >= viewH {
+			break
+		}
+		// Truncate line to fit inside panel (minus panel border 4 chars)
+		maxW := panelW - 4
+		if maxW < 10 {
+			maxW = 10
+		}
+		if lipgloss.Width(line) > maxW {
+			line = truncate(line, maxW-1)
+		}
+		visible = append(visible, line)
+	}
+
+	panel := panelStyle.Render(strings.Join(visible, "\n"))
+
+	// --- Footer ---
+	footerSep := separatorStyle.Render(strings.Repeat("─", max(0, m.width-2)))
+	footerText := statusStyle.Render(" shift+tab/[ prev • tab/] next • / filter • ? help • Ctrl+R refresh • q quit")
+	footer := lipgloss.JoinVertical(lipgloss.Left, footerSep, footerText)
+
+	// --- Outer frame (never overflows) ---
+	inner := lipgloss.JoinVertical(lipgloss.Left, header, errBar, panel, footer)
+	return frameStyle.Render(inner)
 }
 
 func (m rootModel) renderModalView() string {
-	modalW := min(60, m.width-4)
-	if modalW < 30 {
-		modalW = 30
-	}
-
-	// Render modal content
+	// Calculate modal width from content
 	modalContent := m.modal.View()
 	modalLines := strings.Split(modalContent, "\n")
 
-	// Build the modal box
+	// Find widest line in content
+	maxLineW := 0
+	for _, line := range modalLines {
+		w := lipgloss.Width(line)
+		if w > maxLineW {
+			maxLineW = w
+		}
+	}
+
+	// Modal width = content width + 4 padding (2 left + 2 right)
+	modalW := maxLineW + 4
+	// Ensure minimum width and fit in terminal
+	modalW = min(modalW, m.width-2)
+	if modalW < 40 {
+		modalW = 40
+	}
+
 	var box strings.Builder
 	box.WriteString(strings.Repeat("─", modalW))
 	box.WriteString("\n")
 	for _, line := range modalLines {
-		// Pad each line to modalW
-		padded := line
-		if len(padded) < modalW {
-			padded += strings.Repeat(" ", modalW-len(padded))
-		} else if len(padded) > modalW {
-			padded = padded[:modalW]
+		w := lipgloss.Width(line)
+		padRight := modalW - w - 2 // 2 for left padding
+		if padRight < 0 {
+			padRight = 0
 		}
-		box.WriteString(padded)
+		box.WriteString("  " + line + strings.Repeat(" ", padRight))
 		box.WriteString("\n")
 	}
 	box.WriteString(strings.Repeat("─", modalW))
 
-	// Center vertically and horizontally
 	boxStr := box.String()
 	boxLines := strings.Split(boxStr, "\n")
 	totalH := len(boxLines)
 	yOffset := max(0, (m.height-totalH)/2)
 	xOffset := max(0, (m.width-modalW)/2)
 
-	// Build full screen with centered modal
 	var screen strings.Builder
 	for i := 0; i < yOffset; i++ {
 		screen.WriteString("\n")

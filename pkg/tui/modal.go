@@ -14,6 +14,7 @@ const (
 	modalYN modalType = iota
 	modalTextInput
 	modalForm
+	modalInfo
 )
 
 type modalState struct {
@@ -112,6 +113,10 @@ func (m modalState) View() string {
 				"  ",
 				statePoweroff.Render("[n] Cancel"),
 			),
+		)
+	case modalInfo:
+		body += fmt.Sprintf("\n%s",
+			statusStyle.Render("press any key to close"),
 		)
 	}
 

@@ -111,7 +111,7 @@ func (m aclListModel) Update(msg tea.Msg) (aclListModel, tea.Cmd) {
 }
 
 func (m *aclListModel) viewHeight() int {
-	h := m.height - 3
+	h := m.height - 9
 	if h < 1 {
 		h = 1
 	}
@@ -148,9 +148,9 @@ func (m *aclListModel) rebuildLines() {
 			rightsW, truncate(a.Rights, rightsW),
 			truncate(a.Zone, zoneW))
 		if i == m.cursor {
-			m.lines = append(m.lines, cursorStyle.Render("▸ "+row))
+			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
-			m.lines = append(m.lines, "  "+row)
+			m.lines = append(m.lines, row)
 		}
 	}
 
