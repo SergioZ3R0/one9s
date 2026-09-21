@@ -32,15 +32,21 @@ func main() {
 		}
 	}
 
+	demo := len(os.Args) > 1 && os.Args[1] == "--demo"
+
 	tui.SetVersion(Version)
 
-	cfg, err := config.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "one9s: %v\n", err)
-		os.Exit(1)
+	var c client.Client
+	if demo {
+		c = client.NewMock()
+	} else {
+		cfg, err := config.Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "one9s: %v\n", err)
+			os.Exit(1)
+		}
+		c = client.NewGOCA(cfg)
 	}
-
-	c := client.NewGOCA(cfg)
 
 	p := tea.NewProgram(
 		tui.NewRootModel(c),
@@ -58,6 +64,7 @@ func printUsage() {
 
 Usage:
   one9s                          Launch the TUI (default)
+  one9s --demo                   Launch with fake demo data (no API needed)
   one9s vault <command>          Manage encrypted credentials
   one9s -h, --help               Show this help
   one9s -v, --version            Show version
