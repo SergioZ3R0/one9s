@@ -18,9 +18,18 @@ import (
 var Version = "dev"
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "vault" {
-		handleVault(os.Args[2:])
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "-h", "--help", "help":
+			printUsage()
+			return
+		case "-v", "--version", "version":
+			fmt.Printf("one9s %s\n", Version)
+			return
+		case "vault":
+			handleVault(os.Args[2:])
+			return
+		}
 	}
 
 	tui.SetVersion(Version)
@@ -42,6 +51,33 @@ func main() {
 		fmt.Fprintf(os.Stderr, "one9s: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func printUsage() {
+	fmt.Println(`one9s - Terminal UI for OpenNebula cluster management
+
+Usage:
+  one9s                          Launch the TUI (default)
+  one9s vault <command>          Manage encrypted credentials
+  one9s -h, --help               Show this help
+  one9s -v, --version            Show version
+
+Vault Commands:
+  one9s vault init               Create a new encrypted config file
+  one9s vault encrypt            Encrypt an existing plain config file
+  one9s vault decrypt            Decrypt and display the vault contents
+
+Environment Variables:
+  ONE_XMLRPC                     OpenNebula XML-RPC endpoint
+  ONE_AUTH                       OpenNebula credentials (user:password)
+  ONE_VAULT_PASS                 Vault password (skip prompt)
+
+Config File:
+  ~/.one9s/config                Plain text config (ONE_XMLRPC + ONE_AUTH)
+  ~/.one9s/config.vault          Encrypted vault (AES-256-GCM)
+
+Documentation:
+  https://one9s.scszero.com/docs.html`)
 }
 
 func handleVault(args []string) {
