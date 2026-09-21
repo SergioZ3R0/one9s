@@ -18,6 +18,8 @@
 No Sunstone web UI. No Ruby CLI dependencies. Just a single binary that talks
 to the OpenNebula XML-RPC API.
 
+https://github.com/user-attachments/assets/d30f232b-1ae5-4170-a2b8-efb1c4ba4879
+
 ## Features
 
 - **VM Management** - monitor all VMs with state, CPU, memory, IP, host. Split view with detail pane showing full VM info.
