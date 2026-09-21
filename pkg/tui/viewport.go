@@ -64,6 +64,79 @@ func NewRootModel(c client.Client) rootModel {
 	}
 }
 
+// PreloadData injects mock data directly into sub-models for demo mode.
+func (m *rootModel) PreloadData(d client.DemoData) {
+	// VMs
+	ml := newVMListModel()
+	ml.vms = make([]VMRow, 0, len(d.VMs))
+	for _, v := range d.VMs {
+		ml.vms = append(ml.vms, VMRow{
+			ID: fmt.Sprintf("%d", v.ID), Name: v.Name, State: v.State,
+			User: v.User, CPU: v.CPU, Memory: v.Memory, IP: v.IP,
+			Host: v.Host, DeployID: v.DeployID,
+		})
+	}
+	ml.filterDirty = true
+	ml.rebuildLines()
+	m.vmList = ml
+
+	// Hosts
+	hl := newHostListModel()
+	hl.hosts = make([]hostRow, 0, len(d.Hosts))
+	for _, h := range d.Hosts {
+		hl.hosts = append(hl.hosts, hostRow{
+			ID: fmt.Sprintf("%d", h.ID), Name: h.Name, State: h.State,
+			CPU: h.CPU, Memory: h.Memory, VMs: h.VMs, Cluster: h.Cluster,
+		})
+	}
+	hl.filterDirty = true
+	hl.rebuildLines()
+	m.hostList = hl
+
+	// Datastores
+	dl := newDSListModel()
+	dl.datastores = make([]dsRow, 0, len(d.Datastores))
+	for _, ds := range d.Datastores {
+		dl.datastores = append(dl.datastores, dsRow{
+			ID: fmt.Sprintf("%d", ds.ID), Name: ds.Name, Type: ds.Type,
+			Total: ds.Total, Used: ds.Used, Free: ds.Free,
+		})
+	}
+	dl.filterDirty = true
+	dl.rebuildLines()
+	m.dsList = dl
+
+	// ACLs
+	al := newACLListModel()
+	al.acls = make([]aclRow, 0, len(d.ACLs))
+	for _, a := range d.ACLs {
+		al.acls = append(al.acls, aclRow{
+			ID: fmt.Sprintf("%d", a.ID), User: a.User, Resource: a.Resource,
+			Rights: a.Rights, Zone: a.Zone,
+		})
+	}
+	al.filterDirty = true
+	al.rebuildLines()
+	m.aclList = al
+
+	// Quotas
+	ql := newQuotaListModel()
+	ql.quotas = make([]quotaRow, 0, len(d.Quotas))
+	for _, q := range d.Quotas {
+		ql.quotas = append(ql.quotas, quotaRow{
+			UserID: q.UserID, Entity: q.Entity, VMs: q.VMs, CPU: q.CPU,
+			Memory: q.Memory, RunningVMs: q.RunningVMs, Images: q.Images,
+			Size: q.Size, Leases: q.Leases, VMsLimit: q.VMsLimit,
+			CPULimit: q.CPULimit, MemoryLimit: q.MemoryLimit,
+			RunningVMsLimit: q.RunningVMsLimit, ImagesLimit: q.ImagesLimit,
+			SizeLimit: q.SizeLimit, LeasesLimit: q.LeasesLimit,
+		})
+	}
+	ql.filterDirty = true
+	ql.rebuildLines()
+	m.qList = ql
+}
+
 func (m rootModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.fetchVMs(),

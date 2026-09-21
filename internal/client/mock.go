@@ -8,8 +8,27 @@ import (
 // MockClient implements Client with fake data for demo/testing.
 type MockClient struct{}
 
+// DemoData holds pre-loaded mock data for immediate display.
+type DemoData struct {
+	VMs        []VMInfo
+	Hosts      []HostInfo
+	Datastores []DatastoreInfo
+	ACLs       []ACLInfo
+	Quotas     []QuotaInfo
+}
+
 // NewMock creates a MockClient.
 func NewMock() *MockClient { return &MockClient{} }
+
+// Preload returns all mock data for instant display without bubbletea commands.
+func (m *MockClient) Preload() DemoData {
+	vms, _ := m.ListVMs(context.Background())
+	hosts, _ := m.ListHosts(context.Background())
+	ds, _ := m.ListDatastores(context.Background())
+	acls, _ := m.ListACLs(context.Background())
+	quotas, _ := m.ListQuotas(context.Background())
+	return DemoData{VMs: vms, Hosts: hosts, Datastores: ds, ACLs: acls, Quotas: quotas}
+}
 
 func (m *MockClient) ListVMs(_ context.Context) ([]VMInfo, error) {
 	return []VMInfo{

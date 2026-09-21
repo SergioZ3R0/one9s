@@ -48,8 +48,13 @@ func main() {
 		c = client.NewGOCA(cfg)
 	}
 
+	root := tui.NewRootModel(c)
+	if mock, ok := c.(*client.MockClient); ok {
+		root.PreloadData(mock.Preload())
+	}
+
 	p := tea.NewProgram(
-		tui.NewRootModel(c),
+		root,
 		tea.WithAltScreen(),
 	)
 
