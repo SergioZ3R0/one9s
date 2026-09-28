@@ -41,7 +41,7 @@ func (g *GOCAClient) ListVMs(ctx context.Context) ([]VMInfo, error) {
 		}
 		hostname := ""
 		if len(v.HistoryRecords) > 0 {
-			hostname = v.HistoryRecords[0].Hostname
+			hostname = v.HistoryRecords[len(v.HistoryRecords)-1].Hostname
 		}
 		out = append(out, VMInfo{
 			ID:       v.ID,
@@ -290,8 +290,8 @@ func (g *GOCAClient) GetVMDetailInfo(ctx context.Context, id int) (VMDetail, err
 
 	hostname, cluster := "", ""
 	if len(vm.HistoryRecords) > 0 {
-		hostname = vm.HistoryRecords[0].Hostname
-		cluster = fmt.Sprintf("%d", vm.HistoryRecords[0].CID)
+		hostname = vm.HistoryRecords[len(vm.HistoryRecords)-1].Hostname
+		cluster = fmt.Sprintf("%d", vm.HistoryRecords[len(vm.HistoryRecords)-1].CID)
 	}
 
 	vcpu := getTemplateStr(&vm.Template, "VCPU")
