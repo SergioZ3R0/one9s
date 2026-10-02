@@ -59,6 +59,22 @@ Or as a one-liner:
 ONE_AUTH="oneadmin:password" ONE_XMLRPC="http://opennebula:2633/RPC2" ./one9s
 ```
 
+### No cluster yet? Use opennebula-lab
+
+Need an OpenNebula instance to try one9s? Use the companion lab:
+
+```bash
+git clone https://github.com/SergioZ3R0/opennebula-lab.git
+cd opennebula-lab
+docker compose pull
+docker compose up -d
+
+ONE_AUTH="oneadmin:opennebula" ONE_XMLRPC="http://localhost:2633/RPC2" one9s
+```
+
+Self-contained Docker lab: OpenNebula 7.4 front-end (oned + FireEdge) + KVM node.
+Public images on GHCR — see [opennebula-lab](https://github.com/SergioZ3R0/opennebula-lab).
+
 ### Encrypted vault (recommended)
 
 Store credentials encrypted with AES-256-GCM:
