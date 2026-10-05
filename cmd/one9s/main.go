@@ -66,6 +66,7 @@ Vault Commands:
   one9s vault init               Create a new encrypted config file
   one9s vault encrypt            Encrypt an existing plain config file
   one9s vault decrypt            Decrypt and display the vault contents
+  one9s vault edit               Decrypt, edit in $EDITOR, re-encrypt
 
 Environment Variables:
   ONE_XMLRPC                     OpenNebula XML-RPC endpoint
@@ -93,6 +94,8 @@ func handleVault(args []string) {
 		vaultEncrypt()
 	case "decrypt":
 		vaultDecrypt()
+	case "edit":
+		vaultEdit()
 	default:
 		printVaultUsage()
 	}
@@ -105,6 +108,9 @@ func printVaultUsage() {
 	fmt.Println("  one9s vault init       Create a new encrypted config file")
 	fmt.Println("  one9s vault encrypt    Encrypt an existing plain config file")
 	fmt.Println("  one9s vault decrypt    Decrypt and display the vault contents")
+	fmt.Println("  one9s vault edit       Decrypt, edit in $EDITOR, re-encrypt")
+	fmt.Println()
+	fmt.Println("Use 'edit' after password rotation or endpoint changes.")
 }
 
 func vaultInit() {
@@ -206,6 +212,60 @@ func vaultDecrypt() {
 	}
 
 	fmt.Println(plain)
+}
+
+// vaultEdit decrypts the vault, opens $EDITOR, then re-encrypts.
+// Useful after OpenNebula password rotation or endpoint changes.
+func vaultEdit() {
+	vaultPath := config.VaultPath()
+	if _, err := os.Stat(vaultPath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Vault not found: %s\n", vaultPath)
+		fmt.Fprintln(os.Stderr, "Create it first with 'one9s vault init'.")
+		os.Exit(1)
+	}
+
+	pass := readPassword("Vault password: ")
+	plain, err := config.DecryptVault(vaultPath, pass)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	tmpFile, err := os.CreateTemp("", "one9s-vault-*.conf")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	if _, err := tmpFile.WriteString(plain); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	_ = tmpFile.Close()
+
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vi"
+	}
+
+	fmt.Printf("Editing with %s — change ONE_XMLRPC / ONE_AUTH as needed\n", editor)
+
+	cmd := exec.Command(editor, tmpFile.Name())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "editor error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := config.EncryptConfig(vaultPath, tmpFile.Name(), pass); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Vault updated: %s\n", vaultPath)
 }
 
 func readLine() string {

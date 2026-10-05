@@ -97,6 +97,7 @@ Vault commands:
 | `one9s vault init` | Create new encrypted config |
 | `one9s vault encrypt` | Encrypt existing plain config |
 | `one9s vault decrypt` | Decrypt and display contents |
+| `one9s vault edit` | Decrypt, edit in `$EDITOR`, re-encrypt (password rotation, endpoint change) |
 
 Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
 
