@@ -127,7 +127,8 @@ func (m modalState) View() string {
 	case modalForm:
 		for _, f := range m.formFields {
 			if f.isHeader {
-				body += fmt.Sprintf("\n%s\n", tableHeader.Render(f.label))
+				// Header then the next field on the following line (no extra blank).
+				body += fmt.Sprintf("\n%s", tableHeader.Render(f.label))
 				continue
 			}
 			body += fmt.Sprintf("\n  %s %s", filterStyle.Render(f.label+":"), f.input.View())
