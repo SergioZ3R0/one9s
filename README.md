@@ -156,7 +156,7 @@ Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
 
 | Key | Action |
 |-----|--------|
-| `e` | Edit user quota (VM + per-datastore/network/image; empty field keeps current; `ADD ...` fields create new quota entries) |
+| `e` | Edit user quota. Sections: VM quotas, existing DS/network/image quotas, then **Create datastore/network quota** (ID + limits in the same section apply together) |
 | `enter` | Show full quota detail (all DS / network / image entries) |
 
 ## Permissions

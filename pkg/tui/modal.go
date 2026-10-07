@@ -32,9 +32,10 @@ type modalState struct {
 }
 
 type formField struct {
-	label string
-	input textinput.Model
-	key   string
+	label    string
+	input    textinput.Model
+	key      string
+	isHeader bool // section title, not an editable field
 }
 
 func newModal(title, msg string, cmd tea.Cmd) modalState {
@@ -57,17 +58,21 @@ func newTextInputModal(title, msg, expecting string, cmd tea.Cmd) modalState {
 		modalType: modalTextInput,
 		title:     title,
 		message:   msg,
-		cmd:       cmd,
 		input:     ti,
 		expecting: expecting,
 	}
 }
 
 func newFormModal(title string, fields []formField, cmd func(values map[string]string) tea.Cmd) modalState {
+	focused := false
 	for i := range fields {
-		fields[i].input.CharLimit = 12
-		if i == 0 {
+		if fields[i].isHeader {
+			continue
+		}
+		fields[i].input.CharLimit = 16
+		if !focused {
 			fields[i].input.Focus()
+			focused = true
 		}
 	}
 	return modalState{
@@ -77,6 +82,22 @@ func newFormModal(title string, fields []formField, cmd func(values map[string]s
 		formFields: fields,
 		formCmd:    cmd,
 	}
+}
+
+// formFieldIndex returns the next editable field index from `from`, wrapping.
+func formFieldIndex(fields []formField, from int, dir int) int {
+	n := len(fields)
+	if n == 0 {
+		return -1
+	}
+	i := from
+	for step := 0; step < n; step++ {
+		i = (i + dir + n) % n
+		if !fields[i].isHeader {
+			return i
+		}
+	}
+	return -1
 }
 
 func (m modalState) View() string {
@@ -105,6 +126,10 @@ func (m modalState) View() string {
 		)
 	case modalForm:
 		for _, f := range m.formFields {
+			if f.isHeader {
+				body += fmt.Sprintf("\n%s\n", tableHeader.Render(f.label))
+				continue
+			}
 			body += fmt.Sprintf("\n  %s %s", filterStyle.Render(f.label+":"), f.input.View())
 		}
 		body += fmt.Sprintf("\n\n%s",

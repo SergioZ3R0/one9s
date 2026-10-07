@@ -200,28 +200,41 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if k, ok := msg.(tea.KeyMsg); ok {
 				switch k.String() {
 				case "tab":
+					cur := -1
 					for i := range m.modal.formFields {
-						if m.modal.formFields[i].input.Focused() {
-							m.modal.formFields[i].input.Blur()
-							next := (i + 1) % len(m.modal.formFields)
-							m.modal.formFields[next].input.Focus()
+						if m.modal.formFields[i].input.Focused() && !m.modal.formFields[i].isHeader {
+							cur = i
 							break
 						}
 					}
+					if next := formFieldIndex(m.modal.formFields, cur, 1); next >= 0 {
+						if cur >= 0 {
+							m.modal.formFields[cur].input.Blur()
+						}
+						m.modal.formFields[next].input.Focus()
+					}
 					return m, nil
 				case "shift+tab":
+					cur := -1
 					for i := range m.modal.formFields {
-						if m.modal.formFields[i].input.Focused() {
-							m.modal.formFields[i].input.Blur()
-							prev := (i - 1 + len(m.modal.formFields)) % len(m.modal.formFields)
-							m.modal.formFields[prev].input.Focus()
+						if m.modal.formFields[i].input.Focused() && !m.modal.formFields[i].isHeader {
+							cur = i
 							break
 						}
+					}
+					if prev := formFieldIndex(m.modal.formFields, cur, -1); prev >= 0 {
+						if cur >= 0 {
+							m.modal.formFields[cur].input.Blur()
+						}
+						m.modal.formFields[prev].input.Focus()
 					}
 					return m, nil
 				case "y":
 					values := make(map[string]string)
 					for _, f := range m.modal.formFields {
+						if f.isHeader {
+							continue
+						}
 						values[f.key] = f.input.Value()
 					}
 					m.modal.active = false
@@ -234,7 +247,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				default:
 					for i := range m.modal.formFields {
-						if m.modal.formFields[i].input.Focused() {
+						if m.modal.formFields[i].input.Focused() && !m.modal.formFields[i].isHeader {
 							updated, cmd := m.modal.formFields[i].input.Update(msg)
 							m.modal.formFields[i].input = updated
 							cmds = append(cmds, cmd)

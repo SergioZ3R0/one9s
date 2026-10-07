@@ -329,12 +329,13 @@
                     <li><strong>Running</strong>, Currently running VMs</li>
                     <li><strong>Datastores</strong>, per-datastore SIZE and IMAGES limits (e.g. <code>1:10G</code>)</li>
                 </ul>
-                <p>Edit form also supports:</p>
+                <p>Edit form is sectioned:</p>
                 <ul>
-                    <li>Running CPU / Running Memory / System disk size</li>
-                    <li>Per-datastore SIZE (MB) and IMAGES for every existing datastore quota</li>
-                    <li>Per-network LEASES and per-image RVMS</li>
-                    <li><strong>ADD DS id</strong> / <strong>ADD Net id</strong> fields to create new quota entries for datastores or networks that do not have one yet</li>
+                    <li><strong>Virtual machine quotas</strong> — VMs, CPU, memory, running limits, sys disk</li>
+                    <li><strong>Datastore quotas (existing)</strong> — size MB + images per datastore that already has a quota</li>
+                    <li><strong>Network quotas (existing)</strong> — leases per network that already has a quota</li>
+                    <li><strong>Create datastore quota</strong> — one block: Datastore ID + Size MB + Images (all three apply to that ID)</li>
+                    <li><strong>Create network quota</strong> — Network ID + Leases (both apply to that ID)</li>
                 </ul>
                 <p class="note"><strong>Note:</strong> Empty form fields keep the current limit. <code>-1</code> = use default, <code>-2</code> = unlimited. Per-resource quotas survive VM-only updates (OpenNebula merges section-wise).</p>
                 <p class="note"><strong>Note:</strong> Quota data requires individual <code>one.user.info</code> calls per user. With many users, the first load may take a few seconds.</p>

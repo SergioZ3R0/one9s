@@ -180,6 +180,7 @@ func quotaDetailText(q client.QuotaInfo) string {
 
 	fmt.Fprintf(&b, "\n[-1]=default  [-2]=unlimited\n")
 	fmt.Fprintf(&b, "Empty form field keeps the current limit.\n")
+	fmt.Fprintf(&b, "Create section: Size/Images/Leases apply to the ID on the same section.\n")
 	return b.String()
 }
 
@@ -202,8 +203,12 @@ func dsSummary(q client.QuotaInfo) string {
 }
 
 // quotaEditForm builds the dynamic edit form for one user's quotas.
+// Sections group fields so it is obvious which ADD values apply to which ID.
 func quotaEditForm(q client.QuotaInfo) []formField {
 	var fields []formField
+	header := func(title string) {
+		fields = append(fields, formField{label: title, isHeader: true})
+	}
 	add := func(label, key, val string) {
 		ti := textinput.New()
 		ti.CharLimit = 16
@@ -211,6 +216,7 @@ func quotaEditForm(q client.QuotaInfo) []formField {
 		fields = append(fields, formField{label: label, key: key, input: ti})
 	}
 
+	header("Virtual machine quotas")
 	add("VMs", "vms", itoa(q.VMsLimit))
 	add("CPU", "cpu", itoa(q.CPULimit))
 	add("Memory (MB)", "memory", itoa(q.MemoryLimit))
@@ -219,37 +225,53 @@ func quotaEditForm(q client.QuotaInfo) []formField {
 	add("Running Mem (MB)", "running_memory", itoa(q.RunningMemoryLimit))
 	add("Sys disk (MB)", "system_disk", itoa(q.SystemDiskLimit))
 
-	for _, ds := range q.Datastores {
-		name := ds.Name
-		if name == "" {
-			name = fmt.Sprintf("ds-%d", ds.ID)
+	if len(q.Datastores) > 0 {
+		header("Datastore quotas (existing)")
+		for _, ds := range q.Datastores {
+			name := ds.Name
+			if name == "" {
+				name = fmt.Sprintf("ds-%d", ds.ID)
+			}
+			add(fmt.Sprintf("DS %d %s — size MB", ds.ID, name), fmt.Sprintf("ds_%d_size", ds.ID), itoa(ds.Limit))
+			add(fmt.Sprintf("DS %d %s — images", ds.ID, name), fmt.Sprintf("ds_%d_images", ds.ID), itoa(ds.ImagesLimit))
 		}
-		add(fmt.Sprintf("DS %d %s size MB", ds.ID, name), fmt.Sprintf("ds_%d_size", ds.ID), itoa(ds.Limit))
-		add(fmt.Sprintf("DS %d %s images", ds.ID, name), fmt.Sprintf("ds_%d_images", ds.ID), itoa(ds.ImagesLimit))
 	}
-	for _, n := range q.Networks {
-		name := n.Name
-		if name == "" {
-			name = fmt.Sprintf("net-%d", n.ID)
+	if len(q.Networks) > 0 {
+		header("Network quotas (existing)")
+		for _, n := range q.Networks {
+			name := n.Name
+			if name == "" {
+				name = fmt.Sprintf("net-%d", n.ID)
+			}
+			add(fmt.Sprintf("Net %d %s — leases", n.ID, name), fmt.Sprintf("net_%d_leases", n.ID), itoa(n.Limit))
 		}
-		add(fmt.Sprintf("Net %d %s leases", n.ID, name), fmt.Sprintf("net_%d_leases", n.ID), itoa(n.Limit))
 	}
-	for _, im := range q.ImagesList {
-		name := im.Name
-		if name == "" {
-			name = fmt.Sprintf("img-%d", im.ID)
+	if len(q.ImagesList) > 0 {
+		header("Image quotas (existing)")
+		for _, im := range q.ImagesList {
+			name := im.Name
+			if name == "" {
+				name = fmt.Sprintf("img-%d", im.ID)
+			}
+			add(fmt.Sprintf("Img %d %s — rvms", im.ID, name), fmt.Sprintf("img_%d_rvms", im.ID), itoa(im.Limit))
 		}
-		add(fmt.Sprintf("Img %d %s rvms", im.ID, name), fmt.Sprintf("img_%d_rvms", im.ID), itoa(im.Limit))
 	}
 
-	add("ADD DS id", "new_ds_id", "")
-	add("ADD DS size MB", "new_ds_size", "")
-	add("ADD DS images", "new_ds_images", "")
-	add("ADD Net id", "new_net_id", "")
-	add("ADD Net leases", "new_net_leases", "")
+	// Create NEW entries: all three values belong to the same datastore ID.
+	header("Create datastore quota")
+	add("Datastore ID", "new_ds_id", "")
+	add("Size MB", "new_ds_size", "")
+	add("Images", "new_ds_images", "")
 
-	if len(fields) > 0 {
-		fields[0].input.Focus()
+	header("Create network quota")
+	add("Network ID", "new_net_id", "")
+	add("Leases", "new_net_leases", "")
+
+	for i := range fields {
+		if !fields[i].isHeader {
+			fields[i].input.Focus()
+			break
+		}
 	}
 	return fields
 }
