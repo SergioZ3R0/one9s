@@ -3,10 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -19,13 +17,14 @@ const (
 	viewVMs        viewName = "vms"
 	viewHosts      viewName = "hosts"
 	viewDatastores viewName = "datastores"
+	viewNetworks   viewName = "networks"
 	viewACLs       viewName = "acls"
 	viewQuotas     viewName = "quotas"
 	viewHelp       viewName = "help"
 	viewAbout      viewName = "about"
 )
 
-var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewACLs, viewQuotas, viewHelp}
+var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewNetworks, viewACLs, viewQuotas, viewHelp}
 
 type rootModel struct {
 	client client.Client
@@ -35,6 +34,7 @@ type rootModel struct {
 	vmList   vmListModel
 	hostList hostListModel
 	dsList   dsListModel
+	netList  netListModel
 	aclList  aclListModel
 	qList    quotaListModel
 
@@ -58,6 +58,7 @@ func NewRootModel(c client.Client) rootModel {
 		vmList:      newVMListModel(),
 		hostList:    newHostListModel(),
 		dsList:      newDSListModel(),
+		netList:     newNetListModel(),
 		aclList:     newACLListModel(),
 		qList:       newQuotaListModel(),
 		currentView: viewVMs,
@@ -69,6 +70,7 @@ func (m rootModel) Init() tea.Cmd {
 		m.fetchVMs(),
 		m.fetchHosts(),
 		m.fetchDS(),
+		m.fetchNetworks(),
 		m.fetchACLs(),
 		m.fetchQuotas(),
 	)
@@ -82,6 +84,8 @@ func (m rootModel) refreshView() tea.Cmd {
 		return m.fetchHosts()
 	case viewDatastores:
 		return m.fetchDS()
+	case viewNetworks:
+		return m.fetchNetworks()
 	case viewACLs:
 		return m.fetchACLs()
 	case viewQuotas:
@@ -108,6 +112,13 @@ func (m rootModel) fetchDS() tea.Cmd {
 	return func() tea.Msg {
 		ds, err := m.client.ListDatastores(m.ctx)
 		return datastoresFetchedMsg{datastores: ds, err: err}
+	}
+}
+
+func (m rootModel) fetchNetworks() tea.Cmd {
+	return func() tea.Msg {
+		nets, err := m.client.ListNetworks(m.ctx)
+		return networksFetchedMsg{networks: nets, err: err}
 	}
 }
 
@@ -189,28 +200,41 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if k, ok := msg.(tea.KeyMsg); ok {
 				switch k.String() {
 				case "tab":
+					cur := -1
 					for i := range m.modal.formFields {
-						if m.modal.formFields[i].input.Focused() {
-							m.modal.formFields[i].input.Blur()
-							next := (i + 1) % len(m.modal.formFields)
-							m.modal.formFields[next].input.Focus()
+						if m.modal.formFields[i].input.Focused() && !m.modal.formFields[i].isHeader {
+							cur = i
 							break
 						}
 					}
+					if next := formFieldIndex(m.modal.formFields, cur, 1); next >= 0 {
+						if cur >= 0 {
+							m.modal.formFields[cur].input.Blur()
+						}
+						m.modal.formFields[next].input.Focus()
+					}
 					return m, nil
 				case "shift+tab":
+					cur := -1
 					for i := range m.modal.formFields {
-						if m.modal.formFields[i].input.Focused() {
-							m.modal.formFields[i].input.Blur()
-							prev := (i - 1 + len(m.modal.formFields)) % len(m.modal.formFields)
-							m.modal.formFields[prev].input.Focus()
+						if m.modal.formFields[i].input.Focused() && !m.modal.formFields[i].isHeader {
+							cur = i
 							break
 						}
+					}
+					if prev := formFieldIndex(m.modal.formFields, cur, -1); prev >= 0 {
+						if cur >= 0 {
+							m.modal.formFields[cur].input.Blur()
+						}
+						m.modal.formFields[prev].input.Focus()
 					}
 					return m, nil
 				case "y":
 					values := make(map[string]string)
 					for _, f := range m.modal.formFields {
+						if f.isHeader {
+							continue
+						}
 						values[f.key] = f.input.Value()
 					}
 					m.modal.active = false
@@ -223,7 +247,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				default:
 					for i := range m.modal.formFields {
-						if m.modal.formFields[i].input.Focused() {
+						if m.modal.formFields[i].input.Focused() && !m.modal.formFields[i].isHeader {
 							updated, cmd := m.modal.formFields[i].input.Update(msg)
 							m.modal.formFields[i].input = updated
 							cmds = append(cmds, cmd)
@@ -263,6 +287,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.vmList, _ = m.vmList.Update(subMsg)
 		m.hostList, _ = m.hostList.Update(subMsg)
 		m.dsList, _ = m.dsList.Update(subMsg)
+		m.netList, _ = m.netList.Update(subMsg)
 		m.aclList, _ = m.aclList.Update(subMsg)
 		m.qList, _ = m.qList.Update(subMsg)
 		return m, nil
@@ -276,6 +301,9 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case datastoresFetchedMsg:
 		m.fetching = false
 		m.dsList, _ = m.dsList.Update(msg)
+	case networksFetchedMsg:
+		m.fetching = false
+		m.netList, _ = m.netList.Update(msg)
 	case aclsFetchedMsg:
 		m.fetching = false
 		m.aclList, _ = m.aclList.Update(msg)
@@ -356,6 +384,30 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				message:   aboutView(),
 			}
 			return m, nil
+		case "1":
+			m.currentView = viewVMs
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchVMs()
+		case "2":
+			m.currentView = viewHosts
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchHosts()
+		case "3":
+			m.currentView = viewDatastores
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchDS()
+		case "4":
+			m.currentView = viewNetworks
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchNetworks()
+		case "5":
+			m.currentView = viewACLs
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchACLs()
+		case "6":
+			m.currentView = viewQuotas
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchQuotas()
 		}
 
 		// VM tab: enter to show detail
@@ -453,47 +505,32 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if q.UserID < 0 {
 				return m, nil
 			}
-			fields := make([]formField, 7)
-			for i := range fields {
-				ti := textinput.New()
-				ti.CharLimit = 12
-				fields[i] = formField{input: ti}
-			}
-			fields[0].label = "VMs"
-			fields[0].key = "vms"
-			fields[1].label = "CPU"
-			fields[1].key = "cpu"
-			fields[2].label = "Memory (MB)"
-			fields[2].key = "memory"
-			fields[3].label = "Running VMs"
-			fields[3].key = "running"
-			fields[4].label = "Images"
-			fields[4].key = "images"
-			fields[5].label = "Size (MB)"
-			fields[5].key = "size"
-			fields[6].label = "Leases"
-			fields[6].key = "leases"
-
-			fields[0].input.SetValue(fmt.Sprintf("%d", q.VMsLimit))
-			fields[1].input.SetValue(fmt.Sprintf("%d", q.CPULimit))
-			fields[2].input.SetValue(fmt.Sprintf("%d", q.MemoryLimit))
-			fields[3].input.SetValue(fmt.Sprintf("%d", q.RunningVMsLimit))
-			fields[4].input.SetValue(fmt.Sprintf("%d", q.ImagesLimit))
-			fields[5].input.SetValue(fmt.Sprintf("%d", q.SizeLimit))
-			fields[6].input.SetValue(fmt.Sprintf("%d", q.LeasesLimit))
-
-			userID := q.UserID
+			fields := quotaEditForm(q)
+			current := q
 			m.modal = newFormModal(
 				fmt.Sprintf("Edit Quota: %s", q.Entity),
 				fields,
 				func(values map[string]string) tea.Cmd {
-					tpl := buildQuotaTemplate(values)
+					tpl := buildQuotaTemplate(values, current)
 					return func() tea.Msg {
-						err := m.client.QuotaUpdate(m.ctx, userID, tpl)
-						return actionResultMsg{resource: "quota", id: userID, action: "update", err: err}
+						err := m.client.QuotaUpdate(m.ctx, current.UserID, tpl)
+						return actionResultMsg{resource: "quota", id: current.UserID, action: "update", err: err}
 					}
 				},
 			)
+			return m, nil
+		}
+		if m.currentView == viewQuotas && k == "enter" {
+			q := m.getSelectedQuota()
+			if q.UserID < 0 {
+				return m, nil
+			}
+			m.modal = modalState{
+				active:    true,
+				modalType: modalInfo,
+				title:     "Quota detail",
+				message:   quotaDetailText(q),
+			}
 			return m, nil
 		}
 
@@ -510,6 +547,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case viewDatastores:
 			var cmd tea.Cmd
 			m.dsList, cmd = m.dsList.Update(msg)
+			cmds = append(cmds, cmd)
+		case viewNetworks:
+			var cmd tea.Cmd
+			m.netList, cmd = m.netList.Update(msg)
 			cmds = append(cmds, cmd)
 		case viewACLs:
 			var cmd tea.Cmd
@@ -567,52 +608,7 @@ func (m *rootModel) getSelectedQuota() client.QuotaInfo {
 	if m.qList.cursor >= len(m.qList.quotas) {
 		return client.QuotaInfo{UserID: -1}
 	}
-	q := m.qList.quotas[m.qList.cursor]
-	return client.QuotaInfo{
-		UserID:          q.UserID,
-		Entity:          q.Entity,
-		VMsLimit:        q.VMsLimit,
-		CPULimit:        q.CPULimit,
-		MemoryLimit:     q.MemoryLimit,
-		RunningVMsLimit: q.RunningVMsLimit,
-		ImagesLimit:     q.ImagesLimit,
-		SizeLimit:       q.SizeLimit,
-		LeasesLimit:     q.LeasesLimit,
-	}
-}
-
-func buildQuotaTemplate(values map[string]string) string {
-	var vmParts []string
-	if v := parseQuotaVal(values["vms"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("VMS = %d", v))
-	}
-	if v := parseQuotaVal(values["cpu"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("CPU = %d", v))
-	}
-	if v := parseQuotaVal(values["memory"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("MEMORY = %d", v))
-	}
-	if v := parseQuotaVal(values["running"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("RUNNING_VMS = %d", v))
-	}
-
-	var parts []string
-	if len(vmParts) > 0 {
-		parts = append(parts, fmt.Sprintf("VM = [\n  %s\n]", strings.Join(vmParts, ",\n  ")))
-	}
-	return strings.Join(parts, "\n")
-}
-
-func parseQuotaVal(s string) int {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return -2
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return -2
-	}
-	return v
+	return m.qList.quotas[m.qList.cursor].Raw
 }
 
 func (m rootModel) executeVMAction(id int, action string) tea.Cmd {
@@ -671,8 +667,9 @@ func (m rootModel) View() string {
 		m.renderTab("1:VMs", m.currentView == viewVMs),
 		m.renderTab("2:Hosts", m.currentView == viewHosts),
 		m.renderTab("3:DS", m.currentView == viewDatastores),
-		m.renderTab("4:ACLs", m.currentView == viewACLs),
-		m.renderTab("5:Quotas", m.currentView == viewQuotas),
+		m.renderTab("4:Net", m.currentView == viewNetworks),
+		m.renderTab("5:ACLs", m.currentView == viewACLs),
+		m.renderTab("6:Quotas", m.currentView == viewQuotas),
 		m.renderTab("?:Help", m.currentView == viewHelp),
 	}, "")
 	conn := connectionStyle.Render("Connected • OpenNebula")
@@ -760,7 +757,7 @@ func (m rootModel) View() string {
 		split := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
 
 		footerSep := separatorStyle.Render(strings.Repeat("─", max(0, cw)))
-		footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • enter:detail • /:filter • ? help • q quit")
+		footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • enter:detail • /:filter • e quota • ? help • q quit")
 		footer := lipgloss.JoinVertical(lipgloss.Left, footerSep, footerText)
 
 		lines := lipgloss.JoinVertical(lipgloss.Left, header, errBar, split, footer)
@@ -775,6 +772,8 @@ func (m rootModel) View() string {
 		content = m.hostList.View()
 	case viewDatastores:
 		content = m.dsList.View()
+	case viewNetworks:
+		content = m.netList.View()
 	case viewACLs:
 		content = m.aclList.View()
 	case viewQuotas:
@@ -869,6 +868,7 @@ func (m rootModel) helpView() string {
 
 	b.WriteString(tableHeader.Render("Navigation"))
 	b.WriteString("\n")
+	b.WriteString("  1-6       Jump to tab (VMs/Hosts/DS/Net/ACLs/Quotas)\n")
 	b.WriteString("  tab       Next view\n")
 	b.WriteString("  shift+tab Previous view\n")
 	b.WriteString("  ↑/k       Move up\n")
@@ -911,6 +911,7 @@ func (m rootModel) helpView() string {
 	b.WriteString(tableHeader.Render("Quota Actions (Quotas tab only)"))
 	b.WriteString("\n")
 	b.WriteString("  e         Edit user quota\n")
+	b.WriteString("  enter     Quota detail (all datastores/networks/images)\n")
 	b.WriteString("\n")
 
 	b.WriteString(tableHeader.Render("General"))
@@ -918,7 +919,18 @@ func (m rootModel) helpView() string {
 	b.WriteString("  Ctrl+R    Refresh current view\n")
 	b.WriteString("  Ctrl+O    About one9s\n")
 	b.WriteString("  ?         Toggle this help\n")
+	b.WriteString("\n")
+	b.WriteString(tableHeader.Render("Quota Actions (Quotas tab only)"))
+	b.WriteString("\n")
+	b.WriteString("  e         Edit user quota (VM + per-datastore/network/image)\n")
+	b.WriteString("  enter     Show full quota detail\n")
+	b.WriteString("  /         Filter quotas\n")
 	b.WriteString("  q         Quit\n")
+	b.WriteString("\n")
+	b.WriteString(tableHeader.Render("Networks tab"))
+	b.WriteString("\n")
+	b.WriteString("  Shows virtual networks with lease usage (used/total AR capacity)\n")
+	b.WriteString("  /         Filter networks\n")
 
 	return b.String()
 }

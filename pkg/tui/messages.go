@@ -19,6 +19,11 @@ type datastoresFetchedMsg struct {
 	err        error
 }
 
+type networksFetchedMsg struct {
+	networks []client.NetworkInfo
+	err      error
+}
+
 type aclsFetchedMsg struct {
 	acls []client.ACLInfo
 	err  error

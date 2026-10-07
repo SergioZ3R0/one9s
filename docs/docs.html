@@ -321,17 +321,35 @@
 
             <section class="doc" id="quotas" aria-labelledby="quotas">
                 <h2>Quotas</h2>
-                <p>one9s shows per-user quotas fetched from <code>one.user.info</code> for each user. Columns show used/limit for:</p>
+                <p>one9s shows per-user quotas fetched from <code>one.user.info</code> for each user. The table lists global VM quotas and a summary of datastore quotas. Press <code>enter</code> for the full breakdown, or <code>e</code> to edit.</p>
                 <ul>
                     <li><strong>VMs</strong>, total VMs allocated</li>
                     <li><strong>CPU</strong>, CPU cores allocated</li>
                     <li><strong>Memory</strong>, Memory in MB</li>
                     <li><strong>Running</strong>, Currently running VMs</li>
-                    <li><strong>Images</strong>, Disk images</li>
-                    <li><strong>Size</strong>, Disk size in MB</li>
-                    <li><strong>Leases</strong>, Network leases</li>
+                    <li><strong>Datastores</strong>, per-datastore SIZE and IMAGES limits (e.g. <code>1:10G</code>)</li>
                 </ul>
+                <p>Edit form is sectioned:</p>
+                <ul>
+                    <li><strong>Virtual machine quotas</strong> — VMs, CPU, memory, running limits, sys disk</li>
+                    <li><strong>Datastore quotas (existing)</strong> — size MB + images per datastore that already has a quota</li>
+                    <li><strong>Network quotas (existing)</strong> — leases per network that already has a quota</li>
+                    <li><strong>Create datastore quota</strong> — one block: Datastore ID + Size MB + Images (all three apply to that ID)</li>
+                    <li><strong>Create network quota</strong> — Network ID + Leases (both apply to that ID)</li>
+                </ul>
+                <p class="note"><strong>Note:</strong> Empty form fields keep the current limit. <code>-1</code> = use default, <code>-2</code> = unlimited. Per-resource quotas survive VM-only updates (OpenNebula merges section-wise).</p>
                 <p class="note"><strong>Note:</strong> Quota data requires individual <code>one.user.info</code> calls per user. With many users, the first load may take a few seconds.</p>
+            </section>
+
+            <section class="doc" id="networks" aria-labelledby="networks">
+                <h2>Networks</h2>
+                <p>Tab <code>4:Net</code> lists virtual networks with:</p>
+                <ul>
+                    <li>ID, name, bridge, VN_MAD (dummy/bridge/vxlan/...)</li>
+                    <li>Lease usage <code>used/total</code> (total = sum of AR sizes)</li>
+                    <li>Owner</li>
+                </ul>
+                <p>Use <code>/</code> to filter. Numbers <code>1</code>–<code>6</code> jump between tabs.</p>
             </section>
         </main>
 

@@ -26,8 +26,9 @@ https://github.com/user-attachments/assets/d30f232b-1ae5-4170-a2b8-efb1c4ba4879
 - **VM Lifecycle** - reboot, stop, resume, suspend, terminate directly from the terminal with confirmation modals.
 - **Host Management** - enable, disable, offline, delete, rename hosts. Detail view with CPU/Memory progress bars.
 - **Datastore Monitoring** - view storage pools with type, total capacity, used and free space.
+- **Network Monitoring** - virtual networks with bridge, VN_MAD and lease usage (used/total capacity).
 - **ACL Rules** - view and decode access control rules (user, resource, rights, zone) from hex to human-readable.
-- **User Quotas** - view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
+- **User Quotas** - view and edit per-user quotas for VMs, CPU, Memory, Running VMs, plus **per-datastore** (SIZE/IMAGES), **per-network** (LEASES) and **per-image** (RVMS) limits.
 - **Fuzzy Search** - `/` key for instant filtering on all tabs.
 - **Vault Encryption** - credentials encrypted with AES-256-GCM, safe from third-party access.
 - **Cross-platform** - single binary for Linux, macOS, Windows (amd64/arm64).
@@ -112,12 +113,13 @@ Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
 | Key | Action |
 |-----|--------|
 | `tab` / `shift+tab` | Next / previous tab |
+| `1`–`6` | Jump to tab (VMs / Hosts / DS / Net / ACLs / Quotas) |
 | `↑/↓` / `j/k` | Navigate rows |
 | `PgUp/PgDn` / `b/f` | Page up / page down |
 | `g/G` | Go to start / end |
-| `enter` | View details (VMs/Hosts split view) |
+| `enter` | View details (VMs/Hosts split view, quota detail) |
 | `/` | Fuzzy search |
-| `F5` | Refresh current view |
+| `F5` / `Ctrl+R` | Refresh current view |
 | `?` | Help |
 
 ### VM Actions (VMs tab)
@@ -154,7 +156,8 @@ Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
 
 | Key | Action |
 |-----|--------|
-| `e` | Edit user quota (form modal with VMs, CPU, Memory, etc.) |
+| `e` | Edit user quota. Sections: VM quotas, existing DS/network/image quotas, then **Create datastore/network quota** (ID + limits in the same section apply together) |
+| `enter` | Show full quota detail (all DS / network / image entries) |
 
 ## Permissions
 

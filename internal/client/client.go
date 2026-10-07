@@ -41,6 +41,19 @@ type DatastoreInfo struct {
 	Free  string
 }
 
+// NetworkInfo is a virtual network with lease usage.
+type NetworkInfo struct {
+	ID        int
+	Name      string
+	Bridge    string
+	VNMad     string
+	Used      int
+	Total     int // sum of AR sizes when available
+	UsedText  string
+	TotalText string
+	Owner     string
+}
+
 type ACLInfo struct {
 	ID       int
 	User     string
@@ -49,24 +62,46 @@ type ACLInfo struct {
 	Zone     string
 }
 
+// ResourceQuota is one OpenNebula DATASTORE / NETWORK / IMAGE quota entry.
+type ResourceQuota struct {
+	ID    int
+	Name  string // resolved from pool when known
+	Used  int
+	Limit int // DS: SIZE MB, NET: LEASES, IMG: RVMS
+	// Datastore IMAGES limit (ignored for network/image)
+	ImagesLimit int
+	ImagesUsed  int
+
+	UsedText   string
+	LimitText  string
+	ImagesText string // "used/limit" for datastores
+}
+
 type QuotaInfo struct {
-	UserID     int
-	Entity     string
+	UserID int
+	Entity string
+	// Global VM quotas (VM_QUOTA)
 	VMs        string // used/limit
 	CPU        string
 	Memory     string
 	RunningVMs string
-	Images     string
-	Size       string
-	Leases     string
-	// Raw limits for editing
+	// Legacy summary fields (first/default-looking values for the table)
+	Images string
+	Size   string
+	Leases string
+	// Raw VM limits for editing
 	VMsLimit        int
 	CPULimit        int
 	MemoryLimit     int
 	RunningVMsLimit int
-	ImagesLimit     int
-	SizeLimit       int
-	LeasesLimit     int
+	// Extra VM limits preserved on save (-1 = default)
+	RunningCPULimit    int
+	RunningMemoryLimit int
+	SystemDiskLimit    int
+	// Per-resource quotas (all entries from one.user.info)
+	Datastores []ResourceQuota
+	Networks   []ResourceQuota
+	ImagesList []ResourceQuota
 }
 
 type VMDetail struct {
@@ -110,6 +145,7 @@ type Client interface {
 	ListVMs(ctx context.Context) ([]VMInfo, error)
 	ListHosts(ctx context.Context) ([]HostInfo, error)
 	ListDatastores(ctx context.Context) ([]DatastoreInfo, error)
+	ListNetworks(ctx context.Context) ([]NetworkInfo, error)
 	ListACLs(ctx context.Context) ([]ACLInfo, error)
 	ListQuotas(ctx context.Context) ([]QuotaInfo, error)
 	VMAction(ctx context.Context, id int, action string) error

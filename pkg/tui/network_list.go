@@ -7,12 +7,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
-	"github.com/scabello/one9s/internal/client"
 )
 
-type quotaListModel struct {
-	quotas      []quotaRow
+type netListModel struct {
+	networks    []netRow
 	cursor      int
 	scroll      int
 	scrollX     int
@@ -22,45 +20,37 @@ type quotaListModel struct {
 	filter      textinput.Model
 	filtering   bool
 	filterStr   string
-	filtered    []quotaRow
+	filtered    []netRow
 	filterDirty bool
 }
 
-type quotaRow struct {
-	UserID          int
-	Entity          string
-	VMs             string
-	CPU             string
-	Memory          string
-	RunningVMs      string
-	Images          string
-	Size            string
-	Leases          string
-	DSSummary       string
-	VMsLimit        int
-	CPULimit        int
-	MemoryLimit     int
-	RunningVMsLimit int
-	RunningCPULimit int
-	RunningMemLimit int
-	SystemDiskLimit int
-	// Full quota payload for detail/edit
-	Raw client.QuotaInfo
+type netRow struct {
+	ID       string
+	Name     string
+	Bridge   string
+	VNMad    string
+	Used     string
+	Total    string
+	Usage    string
+	Owner    string
+	UsedInt  int
+	TotalInt int
+	RawID    int
 }
 
-func newQuotaListModel() quotaListModel {
+func newNetListModel() netListModel {
 	ti := textinput.New()
-	ti.Placeholder = "filter quotas..."
+	ti.Placeholder = "filter networks..."
 	ti.CharLimit = 64
-	return quotaListModel{
+	return netListModel{
 		filter:      ti,
 		filterDirty: true,
 	}
 }
 
-func (m quotaListModel) Init() tea.Cmd { return nil }
+func (m netListModel) Init() tea.Cmd { return nil }
 
-func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
+func (m netListModel) Update(msg tea.Msg) (netListModel, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -69,31 +59,30 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
-	case quotasFetchedMsg:
+	case networksFetchedMsg:
 		if msg.err != nil {
 			return m, nil
 		}
-		m.quotas = make([]quotaRow, 0, len(msg.quotas))
-		for _, q := range msg.quotas {
-			m.quotas = append(m.quotas, quotaRow{
-				UserID:          q.UserID,
-				Entity:          q.Entity,
-				VMs:             q.VMs,
-				CPU:             q.CPU,
-				Memory:          q.Memory,
-				RunningVMs:      q.RunningVMs,
-				Images:          q.Images,
-				Size:            q.Size,
-				Leases:          q.Leases,
-				DSSummary:       dsSummary(q),
-				VMsLimit:        q.VMsLimit,
-				CPULimit:        q.CPULimit,
-				MemoryLimit:     q.MemoryLimit,
-				RunningVMsLimit: q.RunningVMsLimit,
-				RunningCPULimit: q.RunningCPULimit,
-				RunningMemLimit: q.RunningMemoryLimit,
-				SystemDiskLimit: q.SystemDiskLimit,
-				Raw:             q,
+		m.networks = make([]netRow, 0, len(msg.networks))
+		for _, n := range msg.networks {
+			var usage string
+			if n.Total > 0 {
+				usage = fmt.Sprintf("%d/%d", n.Used, n.Total)
+			} else {
+				usage = fmt.Sprintf("%d/-", n.Used)
+			}
+			m.networks = append(m.networks, netRow{
+				ID:       fmt.Sprintf("%d", n.ID),
+				Name:     n.Name,
+				Bridge:   n.Bridge,
+				VNMad:    n.VNMad,
+				Used:     n.UsedText,
+				Total:    n.TotalText,
+				Usage:    usage,
+				Owner:    n.Owner,
+				UsedInt:  n.Used,
+				TotalInt: n.Total,
+				RawID:    n.ID,
 			})
 		}
 		m.cursor = 0
@@ -145,9 +134,6 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 				if m.cursor >= m.scroll+viewH {
 					m.scroll = m.cursor - viewH + 1
 				}
-				if m.cursor < m.scroll {
-					m.scroll = m.cursor
-				}
 				m.rebuildLines()
 				return m, nil
 			}
@@ -187,9 +173,6 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 		case "left":
 			if m.scrollX > 0 {
 				m.scrollX--
-				if m.scrollX < 0 {
-					m.scrollX = 0
-				}
 			}
 		case "right":
 			m.scrollX++
@@ -198,17 +181,17 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *quotaListModel) getFiltered() []quotaRow {
+func (m *netListModel) getFiltered() []netRow {
 	if m.filterDirty {
 		if m.filterStr == "" {
-			m.filtered = m.quotas
+			m.filtered = m.networks
 		} else {
 			needle := strings.ToLower(m.filterStr)
-			m.filtered = make([]quotaRow, 0)
-			for _, q := range m.quotas {
-				haystack := strings.ToLower(q.Entity + " " + q.VMs + " " + q.CPU + " " + q.Memory)
+			m.filtered = make([]netRow, 0)
+			for _, n := range m.networks {
+				haystack := strings.ToLower(n.ID + " " + n.Name + " " + n.Bridge + " " + n.VNMad + " " + n.Usage + " " + n.Owner)
 				if strings.Contains(haystack, needle) {
-					m.filtered = append(m.filtered, q)
+					m.filtered = append(m.filtered, n)
 				}
 			}
 		}
@@ -217,7 +200,7 @@ func (m *quotaListModel) getFiltered() []quotaRow {
 	return m.filtered
 }
 
-func (m *quotaListModel) viewHeight() int {
+func (m *netListModel) viewHeight() int {
 	h := m.height - 12
 	if m.filtering || m.filterStr != "" {
 		h--
@@ -228,31 +211,16 @@ func (m *quotaListModel) viewHeight() int {
 	return h
 }
 
-func (m *quotaListModel) rebuildLines() {
+func (m *netListModel) rebuildLines() {
 	m.lines = make([]string, 0, len(m.getFiltered())+1)
-
-	w := m.width - 4
-	if w < 30 {
-		w = 30
-	}
-	eW := min(20, w/7)
-	vW := min(10, w/10)
-	cW := min(12, w/8)
-	mW := min(14, w/7)
-	rW := min(10, w/10)
-	iW := min(8, w/12)
-
-	header := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
-		eW, "ENTITY", vW, "VMs", cW, "CPU", mW, "MEMORY", rW, "RUN", iW, "IMG", "DATASTORES")
-	m.lines = append(m.lines, tableHeader.Render(header))
-	for i, q := range m.getFiltered() {
-		ds := q.DSSummary
-		if ds == "" {
-			ds = "-"
-		}
-		row := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
-			eW, q.Entity, vW, q.VMs, cW, q.CPU, mW, q.Memory,
-			rW, q.RunningVMs, iW, q.Images, ds)
+	m.lines = append(m.lines, tableHeader.Render(
+		fmt.Sprintf("  %-6s %-22s %-12s %-8s %-10s %-12s %s",
+			"ID", "NAME", "BRIDGE", "VN_MAD", "LEASES", "CAPACITY", "OWNER"),
+	))
+	for i, n := range m.getFiltered() {
+		row := fmt.Sprintf("%-6s %-22s %-12s %-8s %-10s %-12s %s",
+			n.ID, truncate(n.Name, 21), truncate(n.Bridge, 11), n.VNMad,
+			n.Usage, n.Total, truncate(n.Owner, 16))
 		if i == m.cursor {
 			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {
@@ -260,9 +228,8 @@ func (m *quotaListModel) rebuildLines() {
 		}
 	}
 	viewH := m.viewHeight()
-	filtered := m.getFiltered()
-	if m.cursor >= len(filtered) {
-		m.cursor = max(0, len(filtered)-1)
+	if m.cursor >= len(m.getFiltered()) {
+		m.cursor = max(0, len(m.getFiltered())-1)
 	}
 	if m.cursor < m.scroll {
 		m.scroll = m.cursor
@@ -270,25 +237,23 @@ func (m *quotaListModel) rebuildLines() {
 	if m.cursor >= m.scroll+viewH {
 		m.scroll = m.cursor - viewH + 1
 	}
-	maxScroll := max(0, len(filtered)-viewH)
+	maxScroll := max(0, len(m.getFiltered())-viewH)
 	if m.scroll > maxScroll {
 		m.scroll = maxScroll
 	}
 }
 
-func (m quotaListModel) View() string {
+func (m netListModel) View() string {
 	var parts []string
 	if m.filtering {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filter.View())
 	} else if m.filterStr != "" {
 		parts = append(parts, filterStyle.Render("Filter: ")+m.filterStr+" [esc]")
 	}
-	// Sticky header: first line is always the table header
 	if len(m.lines) > 0 {
 		parts = append(parts, clipLine(scrollLine(m.lines[0], m.scrollX), m.width))
 	}
 	viewH := m.viewHeight()
-	// Content rows from scroll offset
 	start := m.scroll + 1
 	end := min(start+viewH, len(m.lines))
 	if start < len(m.lines) {
@@ -298,7 +263,7 @@ func (m quotaListModel) View() string {
 		}
 	}
 	filtered := m.getFiltered()
-	status := statusStyle.Render(fmt.Sprintf(" %d/%d User Quotas  cursor:%d/%d", len(filtered), len(m.quotas), m.cursor, max(0, len(filtered)-1)))
+	status := statusStyle.Render(fmt.Sprintf(" %d/%d Networks  cursor:%d/%d  leases used/total", len(filtered), len(m.networks), m.cursor, max(0, len(filtered)-1)))
 	parts = append(parts, status)
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }

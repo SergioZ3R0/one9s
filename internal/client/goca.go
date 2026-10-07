@@ -108,6 +108,33 @@ func (g *GOCAClient) ListDatastores(ctx context.Context) ([]DatastoreInfo, error
 	return out, nil
 }
 
+func (g *GOCAClient) ListNetworks(ctx context.Context) ([]NetworkInfo, error) {
+	pool, err := g.controller.VirtualNetworks().InfoContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("vnpool.info: %w", err)
+	}
+	out := make([]NetworkInfo, 0, len(pool.VirtualNetworks))
+	for i := range pool.VirtualNetworks {
+		n := &pool.VirtualNetworks[i]
+		total := 0
+		for _, ar := range n.ARs {
+			total += ar.Size
+		}
+		out = append(out, NetworkInfo{
+			ID:        n.ID,
+			Name:      n.Name,
+			Bridge:    n.Bridge,
+			VNMad:     n.VNMad,
+			Used:      n.UsedLeases,
+			Total:     total,
+			UsedText:  fmt.Sprintf("%d", n.UsedLeases),
+			TotalText: formatQuotaInt(total),
+			Owner:     n.UName,
+		})
+	}
+	return out, nil
+}
+
 func (g *GOCAClient) ListACLs(ctx context.Context) ([]ACLInfo, error) {
 	pool, err := g.controller.ACLs().InfoContext(ctx)
 	if err != nil {
@@ -131,6 +158,26 @@ func (g *GOCAClient) ListQuotas(ctx context.Context) ([]QuotaInfo, error) {
 	userPool, err := g.controller.Users().InfoContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("userpool.info: %w", err)
+	}
+
+	// Resolve resource names once for all users.
+	dsNames := map[int]string{}
+	if pool, err := g.controller.Datastores().InfoContext(ctx); err == nil {
+		for _, ds := range pool.Datastores {
+			dsNames[ds.ID] = ds.Name
+		}
+	}
+	netNames := map[int]string{}
+	if pool, err := g.controller.VirtualNetworks().InfoContext(ctx); err == nil {
+		for _, n := range pool.VirtualNetworks {
+			netNames[n.ID] = n.Name
+		}
+	}
+	imgNames := map[int]string{}
+	if pool, err := g.controller.Images().InfoContext(ctx); err == nil {
+		for _, im := range pool.Images {
+			imgNames[im.ID] = im.Name
+		}
 	}
 
 	// Fetch individual user info (with quotas) concurrently
@@ -169,19 +216,59 @@ func (g *GOCAClient) ListQuotas(ctx context.Context) ([]QuotaInfo, error) {
 				qi.CPULimit = int(vmq.CPU)
 				qi.MemoryLimit = vmq.Memory
 				qi.RunningVMsLimit = vmq.RunningVMs
+				qi.RunningCPULimit = int(vmq.RunningCPU)
+				qi.RunningMemoryLimit = vmq.RunningMemory
+				qi.SystemDiskLimit = int(vmq.SystemDiskSize)
 			}
+
+			// All datastore quotas (per ID), not just [0].
+			for _, dsq := range info.Datastore {
+				rq := ResourceQuota{
+					ID:          dsq.ID,
+					Name:        dsNames[dsq.ID],
+					Used:        dsq.SizeUsed,
+					Limit:       dsq.Size,
+					ImagesLimit: dsq.Images,
+					ImagesUsed:  dsq.ImagesUsed,
+					UsedText:    fmt.Sprintf("%d/%d MB", dsq.SizeUsed, dsq.Size),
+					LimitText:   formatQuotaInt(dsq.Size),
+					ImagesText:  fmt.Sprintf("%d/%d", dsq.ImagesUsed, dsq.Images),
+				}
+				qi.Datastores = append(qi.Datastores, rq)
+			}
+			// Summary columns: first DS as Images/Size for table compatibility.
 			if len(info.Datastore) > 0 {
 				dsq := info.Datastore[0]
 				qi.Images = fmt.Sprintf("%d/%d", dsq.ImagesUsed, dsq.Images)
 				qi.Size = fmt.Sprintf("%d/%d MB", dsq.SizeUsed, dsq.Size)
-				qi.ImagesLimit = dsq.Images
-				qi.SizeLimit = dsq.Size
+			}
+
+			for _, nq := range info.Network {
+				qi.Networks = append(qi.Networks, ResourceQuota{
+					ID:        nq.ID,
+					Name:      netNames[nq.ID],
+					Used:      nq.LeasesUsed,
+					Limit:     nq.Leases,
+					UsedText:  fmt.Sprintf("%d/%d", nq.LeasesUsed, nq.Leases),
+					LimitText: formatQuotaInt(nq.Leases),
+				})
 			}
 			if len(info.Network) > 0 {
 				nq := info.Network[0]
 				qi.Leases = fmt.Sprintf("%d/%d", nq.LeasesUsed, nq.Leases)
-				qi.LeasesLimit = nq.Leases
 			}
+
+			for _, imq := range info.Image {
+				qi.ImagesList = append(qi.ImagesList, ResourceQuota{
+					ID:        imq.ID,
+					Name:      imgNames[imq.ID],
+					Used:      imq.RVMsUsed,
+					Limit:     imq.RVMs,
+					UsedText:  fmt.Sprintf("%d/%d", imq.RVMsUsed, imq.RVMs),
+					LimitText: formatQuotaInt(imq.RVMs),
+				})
+			}
+
 			results <- result{idx: idx, name: uname, qi: qi}
 		}(i, u.ID, u.Name)
 	}
@@ -195,6 +282,17 @@ func (g *GOCAClient) ListQuotas(ctx context.Context) ([]QuotaInfo, error) {
 		out[r.idx] = r.qi
 	}
 	return out, nil
+}
+
+func formatQuotaInt(v int) string {
+	switch v {
+	case -1:
+		return "default"
+	case -2:
+		return "unlimited"
+	default:
+		return fmt.Sprintf("%d", v)
+	}
 }
 
 func (g *GOCAClient) VMAction(ctx context.Context, id int, action string) error {
