@@ -65,7 +65,7 @@ func (m netListModel) Update(msg tea.Msg) (netListModel, tea.Cmd) {
 		}
 		m.networks = make([]netRow, 0, len(msg.networks))
 		for _, n := range msg.networks {
-			usage := "-"
+			var usage string
 			if n.Total > 0 {
 				usage = fmt.Sprintf("%d/%d", n.Used, n.Total)
 			} else {
