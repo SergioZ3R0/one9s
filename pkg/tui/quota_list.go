@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/scabello/one9s/internal/client"
 )
 
 type quotaListModel struct {
@@ -34,13 +36,16 @@ type quotaRow struct {
 	Images          string
 	Size            string
 	Leases          string
+	DSSummary       string
 	VMsLimit        int
 	CPULimit        int
 	MemoryLimit     int
 	RunningVMsLimit int
-	ImagesLimit     int
-	SizeLimit       int
-	LeasesLimit     int
+	RunningCPULimit int
+	RunningMemLimit int
+	SystemDiskLimit int
+	// Full quota payload for detail/edit
+	Raw client.QuotaInfo
 }
 
 func newQuotaListModel() quotaListModel {
@@ -80,13 +85,15 @@ func (m quotaListModel) Update(msg tea.Msg) (quotaListModel, tea.Cmd) {
 				Images:          q.Images,
 				Size:            q.Size,
 				Leases:          q.Leases,
+				DSSummary:       dsSummary(q),
 				VMsLimit:        q.VMsLimit,
 				CPULimit:        q.CPULimit,
 				MemoryLimit:     q.MemoryLimit,
 				RunningVMsLimit: q.RunningVMsLimit,
-				ImagesLimit:     q.ImagesLimit,
-				SizeLimit:       q.SizeLimit,
-				LeasesLimit:     q.LeasesLimit,
+				RunningCPULimit: q.RunningCPULimit,
+				RunningMemLimit: q.RunningMemoryLimit,
+				SystemDiskLimit: q.SystemDiskLimit,
+				Raw:             q,
 			})
 		}
 		m.cursor = 0
@@ -235,14 +242,17 @@ func (m *quotaListModel) rebuildLines() {
 	rW := min(10, w/10)
 	iW := min(8, w/12)
 
-	m.lines = append(m.lines, tableHeader.Render(
-		fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
-			eW, "ENTITY", vW, "VMs", cW, "CPU", mW, "MEMORY", rW, "RUN", iW, "IMG", "LEASES"),
-	))
+	header := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
+		eW, "ENTITY", vW, "VMs", cW, "CPU", mW, "MEMORY", rW, "RUN", iW, "IMG", "DATASTORES")
+	m.lines = append(m.lines, tableHeader.Render(header))
 	for i, q := range m.getFiltered() {
+		ds := q.DSSummary
+		if ds == "" {
+			ds = "-"
+		}
 		row := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s %s",
 			eW, q.Entity, vW, q.VMs, cW, q.CPU, mW, q.Memory,
-			rW, q.RunningVMs, iW, q.Images, q.Leases)
+			rW, q.RunningVMs, iW, q.Images, ds)
 		if i == m.cursor {
 			m.lines = append(m.lines, cursorStyle.Render(row))
 		} else {

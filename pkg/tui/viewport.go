@@ -3,10 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -453,47 +451,32 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if q.UserID < 0 {
 				return m, nil
 			}
-			fields := make([]formField, 7)
-			for i := range fields {
-				ti := textinput.New()
-				ti.CharLimit = 12
-				fields[i] = formField{input: ti}
-			}
-			fields[0].label = "VMs"
-			fields[0].key = "vms"
-			fields[1].label = "CPU"
-			fields[1].key = "cpu"
-			fields[2].label = "Memory (MB)"
-			fields[2].key = "memory"
-			fields[3].label = "Running VMs"
-			fields[3].key = "running"
-			fields[4].label = "Images"
-			fields[4].key = "images"
-			fields[5].label = "Size (MB)"
-			fields[5].key = "size"
-			fields[6].label = "Leases"
-			fields[6].key = "leases"
-
-			fields[0].input.SetValue(fmt.Sprintf("%d", q.VMsLimit))
-			fields[1].input.SetValue(fmt.Sprintf("%d", q.CPULimit))
-			fields[2].input.SetValue(fmt.Sprintf("%d", q.MemoryLimit))
-			fields[3].input.SetValue(fmt.Sprintf("%d", q.RunningVMsLimit))
-			fields[4].input.SetValue(fmt.Sprintf("%d", q.ImagesLimit))
-			fields[5].input.SetValue(fmt.Sprintf("%d", q.SizeLimit))
-			fields[6].input.SetValue(fmt.Sprintf("%d", q.LeasesLimit))
-
-			userID := q.UserID
+			fields := quotaEditForm(q)
+			current := q
 			m.modal = newFormModal(
 				fmt.Sprintf("Edit Quota: %s", q.Entity),
 				fields,
 				func(values map[string]string) tea.Cmd {
-					tpl := buildQuotaTemplate(values)
+					tpl := buildQuotaTemplate(values, current)
 					return func() tea.Msg {
-						err := m.client.QuotaUpdate(m.ctx, userID, tpl)
-						return actionResultMsg{resource: "quota", id: userID, action: "update", err: err}
+						err := m.client.QuotaUpdate(m.ctx, current.UserID, tpl)
+						return actionResultMsg{resource: "quota", id: current.UserID, action: "update", err: err}
 					}
 				},
 			)
+			return m, nil
+		}
+		if m.currentView == viewQuotas && k == "enter" {
+			q := m.getSelectedQuota()
+			if q.UserID < 0 {
+				return m, nil
+			}
+			m.modal = modalState{
+				active:    true,
+				modalType: modalInfo,
+				title:     "Quota detail",
+				message:   quotaDetailText(q),
+			}
 			return m, nil
 		}
 
@@ -567,52 +550,7 @@ func (m *rootModel) getSelectedQuota() client.QuotaInfo {
 	if m.qList.cursor >= len(m.qList.quotas) {
 		return client.QuotaInfo{UserID: -1}
 	}
-	q := m.qList.quotas[m.qList.cursor]
-	return client.QuotaInfo{
-		UserID:          q.UserID,
-		Entity:          q.Entity,
-		VMsLimit:        q.VMsLimit,
-		CPULimit:        q.CPULimit,
-		MemoryLimit:     q.MemoryLimit,
-		RunningVMsLimit: q.RunningVMsLimit,
-		ImagesLimit:     q.ImagesLimit,
-		SizeLimit:       q.SizeLimit,
-		LeasesLimit:     q.LeasesLimit,
-	}
-}
-
-func buildQuotaTemplate(values map[string]string) string {
-	var vmParts []string
-	if v := parseQuotaVal(values["vms"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("VMS = %d", v))
-	}
-	if v := parseQuotaVal(values["cpu"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("CPU = %d", v))
-	}
-	if v := parseQuotaVal(values["memory"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("MEMORY = %d", v))
-	}
-	if v := parseQuotaVal(values["running"]); v != -1 {
-		vmParts = append(vmParts, fmt.Sprintf("RUNNING_VMS = %d", v))
-	}
-
-	var parts []string
-	if len(vmParts) > 0 {
-		parts = append(parts, fmt.Sprintf("VM = [\n  %s\n]", strings.Join(vmParts, ",\n  ")))
-	}
-	return strings.Join(parts, "\n")
-}
-
-func parseQuotaVal(s string) int {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return -2
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return -2
-	}
-	return v
+	return m.qList.quotas[m.qList.cursor].Raw
 }
 
 func (m rootModel) executeVMAction(id int, action string) tea.Cmd {
@@ -760,7 +698,7 @@ func (m rootModel) View() string {
 		split := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
 
 		footerSep := separatorStyle.Render(strings.Repeat("─", max(0, cw)))
-		footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • enter:detail • /:filter • ? help • q quit")
+		footerText := statusStyle.Render(" tab:switch • ↑↓:navigate • enter:detail • /:filter • e quota • ? help • q quit")
 		footer := lipgloss.JoinVertical(lipgloss.Left, footerSep, footerText)
 
 		lines := lipgloss.JoinVertical(lipgloss.Left, header, errBar, split, footer)
@@ -911,6 +849,7 @@ func (m rootModel) helpView() string {
 	b.WriteString(tableHeader.Render("Quota Actions (Quotas tab only)"))
 	b.WriteString("\n")
 	b.WriteString("  e         Edit user quota\n")
+	b.WriteString("  enter     Quota detail (all datastores/networks/images)\n")
 	b.WriteString("\n")
 
 	b.WriteString(tableHeader.Render("General"))
@@ -918,6 +857,12 @@ func (m rootModel) helpView() string {
 	b.WriteString("  Ctrl+R    Refresh current view\n")
 	b.WriteString("  Ctrl+O    About one9s\n")
 	b.WriteString("  ?         Toggle this help\n")
+	b.WriteString("\n")
+	b.WriteString(tableHeader.Render("Quota Actions (Quotas tab only)"))
+	b.WriteString("\n")
+	b.WriteString("  e         Edit user quota (VM + per-datastore/network/image)\n")
+	b.WriteString("  enter     Show full quota detail\n")
+	b.WriteString("  /         Filter quotas\n")
 	b.WriteString("  q         Quit\n")
 
 	return b.String()

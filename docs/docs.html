@@ -321,16 +321,22 @@
 
             <section class="doc" id="quotas" aria-labelledby="quotas">
                 <h2>Quotas</h2>
-                <p>one9s shows per-user quotas fetched from <code>one.user.info</code> for each user. Columns show used/limit for:</p>
+                <p>one9s shows per-user quotas fetched from <code>one.user.info</code> for each user. The table lists global VM quotas and a summary of datastore quotas. Press <code>enter</code> for the full breakdown, or <code>e</code> to edit.</p>
                 <ul>
                     <li><strong>VMs</strong>, total VMs allocated</li>
                     <li><strong>CPU</strong>, CPU cores allocated</li>
                     <li><strong>Memory</strong>, Memory in MB</li>
                     <li><strong>Running</strong>, Currently running VMs</li>
-                    <li><strong>Images</strong>, Disk images</li>
-                    <li><strong>Size</strong>, Disk size in MB</li>
-                    <li><strong>Leases</strong>, Network leases</li>
+                    <li><strong>Datastores</strong>, per-datastore SIZE and IMAGES limits (e.g. <code>1:10G</code>)</li>
                 </ul>
+                <p>Edit form also supports:</p>
+                <ul>
+                    <li>Running CPU / Running Memory / System disk size</li>
+                    <li>Per-datastore SIZE (MB) and IMAGES for every existing datastore quota</li>
+                    <li>Per-network LEASES and per-image RVMS</li>
+                    <li>Adding a new datastore or network quota by ID</li>
+                </ul>
+                <p class="note"><strong>Note:</strong> Empty form fields keep the current limit. <code>-1</code> = use default, <code>-2</code> = unlimited. Per-resource quotas survive VM-only updates (OpenNebula merges section-wise).</p>
                 <p class="note"><strong>Note:</strong> Quota data requires individual <code>one.user.info</code> calls per user. With many users, the first load may take a few seconds.</p>
             </section>
         </main>

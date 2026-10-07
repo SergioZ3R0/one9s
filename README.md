@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/d30f232b-1ae5-4170-a2b8-efb1c4ba4879
 - **Host Management** - enable, disable, offline, delete, rename hosts. Detail view with CPU/Memory progress bars.
 - **Datastore Monitoring** - view storage pools with type, total capacity, used and free space.
 - **ACL Rules** - view and decode access control rules (user, resource, rights, zone) from hex to human-readable.
-- **User Quotas** - view and edit per-user quotas for VMs, CPU, Memory, Running VMs, Images, Size and Leases.
+- **User Quotas** - view and edit per-user quotas for VMs, CPU, Memory, Running VMs, plus **per-datastore** (SIZE/IMAGES), **per-network** (LEASES) and **per-image** (RVMS) limits.
 - **Fuzzy Search** - `/` key for instant filtering on all tabs.
 - **Vault Encryption** - credentials encrypted with AES-256-GCM, safe from third-party access.
 - **Cross-platform** - single binary for Linux, macOS, Windows (amd64/arm64).
@@ -154,7 +154,8 @@ Vault password can be set via `ONE_VAULT_PASS` env var to skip the prompt.
 
 | Key | Action |
 |-----|--------|
-| `e` | Edit user quota (form modal with VMs, CPU, Memory, etc.) |
+| `e` | Edit user quota (VM + per-datastore/network/image; empty field keeps current) |
+| `enter` | Show full quota detail (all DS / network / image entries) |
 
 ## Permissions
 
