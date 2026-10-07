@@ -17,13 +17,14 @@ const (
 	viewVMs        viewName = "vms"
 	viewHosts      viewName = "hosts"
 	viewDatastores viewName = "datastores"
+	viewNetworks   viewName = "networks"
 	viewACLs       viewName = "acls"
 	viewQuotas     viewName = "quotas"
 	viewHelp       viewName = "help"
 	viewAbout      viewName = "about"
 )
 
-var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewACLs, viewQuotas, viewHelp}
+var allViews = []viewName{viewVMs, viewHosts, viewDatastores, viewNetworks, viewACLs, viewQuotas, viewHelp}
 
 type rootModel struct {
 	client client.Client
@@ -33,6 +34,7 @@ type rootModel struct {
 	vmList   vmListModel
 	hostList hostListModel
 	dsList   dsListModel
+	netList  netListModel
 	aclList  aclListModel
 	qList    quotaListModel
 
@@ -56,6 +58,7 @@ func NewRootModel(c client.Client) rootModel {
 		vmList:      newVMListModel(),
 		hostList:    newHostListModel(),
 		dsList:      newDSListModel(),
+		netList:     newNetListModel(),
 		aclList:     newACLListModel(),
 		qList:       newQuotaListModel(),
 		currentView: viewVMs,
@@ -67,6 +70,7 @@ func (m rootModel) Init() tea.Cmd {
 		m.fetchVMs(),
 		m.fetchHosts(),
 		m.fetchDS(),
+		m.fetchNetworks(),
 		m.fetchACLs(),
 		m.fetchQuotas(),
 	)
@@ -80,6 +84,8 @@ func (m rootModel) refreshView() tea.Cmd {
 		return m.fetchHosts()
 	case viewDatastores:
 		return m.fetchDS()
+	case viewNetworks:
+		return m.fetchNetworks()
 	case viewACLs:
 		return m.fetchACLs()
 	case viewQuotas:
@@ -106,6 +112,13 @@ func (m rootModel) fetchDS() tea.Cmd {
 	return func() tea.Msg {
 		ds, err := m.client.ListDatastores(m.ctx)
 		return datastoresFetchedMsg{datastores: ds, err: err}
+	}
+}
+
+func (m rootModel) fetchNetworks() tea.Cmd {
+	return func() tea.Msg {
+		nets, err := m.client.ListNetworks(m.ctx)
+		return networksFetchedMsg{networks: nets, err: err}
 	}
 }
 
@@ -261,6 +274,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.vmList, _ = m.vmList.Update(subMsg)
 		m.hostList, _ = m.hostList.Update(subMsg)
 		m.dsList, _ = m.dsList.Update(subMsg)
+		m.netList, _ = m.netList.Update(subMsg)
 		m.aclList, _ = m.aclList.Update(subMsg)
 		m.qList, _ = m.qList.Update(subMsg)
 		return m, nil
@@ -274,6 +288,9 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case datastoresFetchedMsg:
 		m.fetching = false
 		m.dsList, _ = m.dsList.Update(msg)
+	case networksFetchedMsg:
+		m.fetching = false
+		m.netList, _ = m.netList.Update(msg)
 	case aclsFetchedMsg:
 		m.fetching = false
 		m.aclList, _ = m.aclList.Update(msg)
@@ -354,6 +371,30 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				message:   aboutView(),
 			}
 			return m, nil
+		case "1":
+			m.currentView = viewVMs
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchVMs()
+		case "2":
+			m.currentView = viewHosts
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchHosts()
+		case "3":
+			m.currentView = viewDatastores
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchDS()
+		case "4":
+			m.currentView = viewNetworks
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchNetworks()
+		case "5":
+			m.currentView = viewACLs
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchACLs()
+		case "6":
+			m.currentView = viewQuotas
+			m.vmDetail, m.hostDetail = nil, nil
+			return m, m.fetchQuotas()
 		}
 
 		// VM tab: enter to show detail
@@ -494,6 +535,10 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.dsList, cmd = m.dsList.Update(msg)
 			cmds = append(cmds, cmd)
+		case viewNetworks:
+			var cmd tea.Cmd
+			m.netList, cmd = m.netList.Update(msg)
+			cmds = append(cmds, cmd)
 		case viewACLs:
 			var cmd tea.Cmd
 			m.aclList, cmd = m.aclList.Update(msg)
@@ -609,8 +654,9 @@ func (m rootModel) View() string {
 		m.renderTab("1:VMs", m.currentView == viewVMs),
 		m.renderTab("2:Hosts", m.currentView == viewHosts),
 		m.renderTab("3:DS", m.currentView == viewDatastores),
-		m.renderTab("4:ACLs", m.currentView == viewACLs),
-		m.renderTab("5:Quotas", m.currentView == viewQuotas),
+		m.renderTab("4:Net", m.currentView == viewNetworks),
+		m.renderTab("5:ACLs", m.currentView == viewACLs),
+		m.renderTab("6:Quotas", m.currentView == viewQuotas),
 		m.renderTab("?:Help", m.currentView == viewHelp),
 	}, "")
 	conn := connectionStyle.Render("Connected • OpenNebula")
@@ -713,6 +759,8 @@ func (m rootModel) View() string {
 		content = m.hostList.View()
 	case viewDatastores:
 		content = m.dsList.View()
+	case viewNetworks:
+		content = m.netList.View()
 	case viewACLs:
 		content = m.aclList.View()
 	case viewQuotas:
@@ -807,6 +855,7 @@ func (m rootModel) helpView() string {
 
 	b.WriteString(tableHeader.Render("Navigation"))
 	b.WriteString("\n")
+	b.WriteString("  1-6       Jump to tab (VMs/Hosts/DS/Net/ACLs/Quotas)\n")
 	b.WriteString("  tab       Next view\n")
 	b.WriteString("  shift+tab Previous view\n")
 	b.WriteString("  ↑/k       Move up\n")
@@ -864,6 +913,11 @@ func (m rootModel) helpView() string {
 	b.WriteString("  enter     Show full quota detail\n")
 	b.WriteString("  /         Filter quotas\n")
 	b.WriteString("  q         Quit\n")
+	b.WriteString("\n")
+	b.WriteString(tableHeader.Render("Networks tab"))
+	b.WriteString("\n")
+	b.WriteString("  Shows virtual networks with lease usage (used/total AR capacity)\n")
+	b.WriteString("  /         Filter networks\n")
 
 	return b.String()
 }

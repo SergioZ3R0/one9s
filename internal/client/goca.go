@@ -108,6 +108,33 @@ func (g *GOCAClient) ListDatastores(ctx context.Context) ([]DatastoreInfo, error
 	return out, nil
 }
 
+func (g *GOCAClient) ListNetworks(ctx context.Context) ([]NetworkInfo, error) {
+	pool, err := g.controller.VirtualNetworks().InfoContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("vnpool.info: %w", err)
+	}
+	out := make([]NetworkInfo, 0, len(pool.VirtualNetworks))
+	for i := range pool.VirtualNetworks {
+		n := &pool.VirtualNetworks[i]
+		total := 0
+		for _, ar := range n.ARs {
+			total += ar.Size
+		}
+		out = append(out, NetworkInfo{
+			ID:        n.ID,
+			Name:      n.Name,
+			Bridge:    n.Bridge,
+			VNMad:     n.VNMad,
+			Used:      n.UsedLeases,
+			Total:     total,
+			UsedText:  fmt.Sprintf("%d", n.UsedLeases),
+			TotalText: formatQuotaInt(total),
+			Owner:     n.UName,
+		})
+	}
+	return out, nil
+}
+
 func (g *GOCAClient) ListACLs(ctx context.Context) ([]ACLInfo, error) {
 	pool, err := g.controller.ACLs().InfoContext(ctx)
 	if err != nil {

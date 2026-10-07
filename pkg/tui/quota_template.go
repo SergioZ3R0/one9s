@@ -242,11 +242,11 @@ func quotaEditForm(q client.QuotaInfo) []formField {
 		add(fmt.Sprintf("Img %d %s rvms", im.ID, name), fmt.Sprintf("img_%d_rvms", im.ID), itoa(im.Limit))
 	}
 
-	add("NEW DS id", "new_ds_id", "")
-	add("NEW DS size MB", "new_ds_size", "")
-	add("NEW DS images", "new_ds_images", "")
-	add("NEW Net id", "new_net_id", "")
-	add("NEW Net leases", "new_net_leases", "")
+	add("ADD DS id", "new_ds_id", "")
+	add("ADD DS size MB", "new_ds_size", "")
+	add("ADD DS images", "new_ds_images", "")
+	add("ADD Net id", "new_net_id", "")
+	add("ADD Net leases", "new_net_leases", "")
 
 	if len(fields) > 0 {
 		fields[0].input.Focus()

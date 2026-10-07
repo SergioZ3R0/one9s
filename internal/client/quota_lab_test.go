@@ -83,4 +83,17 @@ func TestListQuotasLab(t *testing.T) {
 		}
 		t.Logf("OK: VM update preserved %d datastore and %d network quotas", len(q.Datastores), len(q.Networks))
 	}
+
+	// Networks tab data
+	nets, err := g.ListNetworks(ctx)
+	if err != nil {
+		t.Fatalf("ListNetworks: %v", err)
+	}
+	for _, n := range nets {
+		t.Logf("net id=%d name=%q bridge=%s mad=%s leases=%d cap=%s",
+			n.ID, n.Name, n.Bridge, n.VNMad, n.Used, n.TotalText)
+	}
+	if len(nets) == 0 {
+		t.Log("no networks in lab (ok if SEED_NETWORK=none)")
+	}
 }

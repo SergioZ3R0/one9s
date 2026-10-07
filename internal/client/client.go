@@ -41,6 +41,19 @@ type DatastoreInfo struct {
 	Free  string
 }
 
+// NetworkInfo is a virtual network with lease usage.
+type NetworkInfo struct {
+	ID        int
+	Name      string
+	Bridge    string
+	VNMad     string
+	Used      int
+	Total     int // sum of AR sizes when available
+	UsedText  string
+	TotalText string
+	Owner     string
+}
+
 type ACLInfo struct {
 	ID       int
 	User     string
@@ -132,6 +145,7 @@ type Client interface {
 	ListVMs(ctx context.Context) ([]VMInfo, error)
 	ListHosts(ctx context.Context) ([]HostInfo, error)
 	ListDatastores(ctx context.Context) ([]DatastoreInfo, error)
+	ListNetworks(ctx context.Context) ([]NetworkInfo, error)
 	ListACLs(ctx context.Context) ([]ACLInfo, error)
 	ListQuotas(ctx context.Context) ([]QuotaInfo, error)
 	VMAction(ctx context.Context, id int, action string) error

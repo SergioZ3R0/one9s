@@ -334,10 +334,21 @@
                     <li>Running CPU / Running Memory / System disk size</li>
                     <li>Per-datastore SIZE (MB) and IMAGES for every existing datastore quota</li>
                     <li>Per-network LEASES and per-image RVMS</li>
-                    <li>Adding a new datastore or network quota by ID</li>
+                    <li><strong>ADD DS id</strong> / <strong>ADD Net id</strong> fields to create new quota entries for datastores or networks that do not have one yet</li>
                 </ul>
                 <p class="note"><strong>Note:</strong> Empty form fields keep the current limit. <code>-1</code> = use default, <code>-2</code> = unlimited. Per-resource quotas survive VM-only updates (OpenNebula merges section-wise).</p>
                 <p class="note"><strong>Note:</strong> Quota data requires individual <code>one.user.info</code> calls per user. With many users, the first load may take a few seconds.</p>
+            </section>
+
+            <section class="doc" id="networks" aria-labelledby="networks">
+                <h2>Networks</h2>
+                <p>Tab <code>4:Net</code> lists virtual networks with:</p>
+                <ul>
+                    <li>ID, name, bridge, VN_MAD (dummy/bridge/vxlan/...)</li>
+                    <li>Lease usage <code>used/total</code> (total = sum of AR sizes)</li>
+                    <li>Owner</li>
+                </ul>
+                <p>Use <code>/</code> to filter. Numbers <code>1</code>–<code>6</code> jump between tabs.</p>
             </section>
         </main>
 
