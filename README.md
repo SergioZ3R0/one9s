@@ -18,7 +18,7 @@
 No Sunstone web UI. No Ruby CLI dependencies. Just a single binary that talks
 to the OpenNebula XML-RPC API.
 
-https://github.com/user-attachments/assets/d30f232b-1ae5-4170-a2b8-efb1c4ba4879
+https://github.com/user-attachments/assets/6524c1fa-92ed-4b35-90f4-3ec96ad0cc3c
 
 ## Features
 
